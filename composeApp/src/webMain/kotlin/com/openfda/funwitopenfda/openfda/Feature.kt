@@ -48,8 +48,7 @@ fun Feature(feature: Pair<String,List<String>>,
     ) {
         Surface(
             modifier = Modifier
-                .fillMaxWidth(0.9f)
-                .fillMaxHeight(0.9f)
+                .fillMaxWidth(0.8f)
                 .border(1.dp, Color.Black),
             shape = MaterialTheme.shapes.large,
             tonalElevation = 6.dp
@@ -83,37 +82,43 @@ fun Feature(feature: Pair<String,List<String>>,
 
                     }
                 } else {
-                    Column {
+                    Column(modifier=Modifier.fillMaxSize()) {
                         feature.second.forEachIndexed { idx, iu ->
                             println("table $idx, $iu")
                             Box(
                                 modifier = Modifier.weight(1f)
 
-                                    .border(1.dp, Color.Green)
+                                    .border(1.dp, Color.Black)
                             ) {
                                 WebElementView(
-                                    modifier = Modifier
+                                    modifier = Modifier.padding(10.dp)
                                        /* .sizeIn(
                                             minWidth = webViewWidth.value+50.dp,
                                             minHeight = webViewHeight.value+50.dp)*/ // Fallback min sizes
-                                        .fillMaxSize()
-                                        .border(1.dp, Color.Black),
+                                        .fillMaxSize(),
                                     factory = {
-                                        val tableElement = (document.createElement("div") as HTMLDivElement)
+                                        val tableElement = (document.createElement("div") as HTMLDivElement).apply {
+                                            style.overflowY="auto"
+                                            style.maxHeight="100%"
+                                            style.overflowX="auto"
+                                            style.maxWidth="100%"
+                                           /* style.padding="10px"*/
 
-                                        //tableElement.innerHTML = iu
+                                        }
+
+                                         //tableElement.innerHTML = iu
                                         return@WebElementView tableElement
                                     },
                                     update = { element ->
                                         element.innerHTML = iu
-                                        coroutineScope.launch {
+                                       /* coroutineScope.launch {
                                             delay(300) // Brief delay for DOM to settle (adjust if needed)
                                             val measuredWidth = element.offsetWidth.toFloat().dp
                                             val measuredHeight = element.offsetHeight.toFloat().dp
                                             webViewWidth.value = measuredWidth
                                             webViewHeight.value = measuredHeight
                                             println("${webViewWidth.value}, ${webViewHeight.value}")
-                                        }
+                                        }*/
                                     }
                                 )
                             }
