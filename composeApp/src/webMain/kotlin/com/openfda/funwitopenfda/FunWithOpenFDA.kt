@@ -8,8 +8,10 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -491,7 +493,11 @@ fun FunWithOpenFDA(modifier: Modifier= Modifier) {
                                 modifier = Modifier.padding(5.dp).sizeIn(maxWidth = 860.dp, maxHeight = 300.dp)
                             ) {
                                 Row(modifier = Modifier.padding(5.dp).fillMaxSize()) {
-                                    Column(modifier = Modifier.weight(0.5f)) {
+                                    Column(
+                                        modifier = Modifier.weight(0.5f)
+                                            .fillMaxHeight()
+                                            .verticalScroll(rememberScrollState())
+                                    ) {
                                         Text(text = "General information", style = MaterialTheme.typography.headlineMedium)
                                         Text("Generic Name(s): ${item.openfda.generic_name.joinToString(", ")}",style = MaterialTheme.typography.bodyLarge)
                                         Text("Brand Name(s): ${item.openfda.brand_name.joinToString(", ")}",style = MaterialTheme.typography.bodyLarge)
@@ -514,45 +520,89 @@ fun FunWithOpenFDA(modifier: Modifier= Modifier) {
                                     }
                                     val features = listOf(
 
-                                        Pair("Description", item.description),
-                                        Pair("Microbiology", item.microbiology),
                                         Pair("Indication and usage", item.indications_and_usage),
+Pair("Purpose", item.purpose),
+
                                         Pair("Dosage and administration", item.dosage_and_administration),
                                         Pair("Dosage form and strength", item.dosage_forms_and_strengths),
                                         Pair("Contraindications", item.contraindications),
                                         Pair("Warnings and cautions", item.warnings_and_cautions),
+                                        Pair("Boxed warnings", item.boxed_warning),
+                                        Pair("Warnings", item.warnings),
+                                        Pair("Precautions", item.precautions),
+                                        Pair("User safety warnings", item.user_safety_warnings),
+                                        Pair("General precautions", item.general_precautions),
+
                                         Pair("Adverse reactions", item.adverse_reactions),
                                         Pair("Drug interactions", item.drug_interactions),
+                                        Pair("Drug and/or laboratory test interactions",item.drug_and_or_laboratory_test_interactions),
+
+
                                         Pair("Use in specific populations", item.use_in_specific_populations),
                                         Pair("Pregnancy", item.pregnancy),
-                                        Pair("Pediatric use", item.pediatric_use),
+                                        Pair("Pregnancy or breast feeding", item.pregnancy_or_breast_feeding),
+                                        Pair("Labor and delivery",item.labor_and_delivery),
+                                        Pair("Nursing mothers",item.nursing_mothers),
+                                        Pair("Pediatric use",item.pediatric_use),
                                         Pair("Geriatric use", item.geriatric_use),
+                                        Pair("Teratogenic", item.teratogenic_effects),
+
+                                        Pair("Drug abuse and dependence",item.drug_abuse_and_dependence),
+                                        Pair("Controlled substance",item.controlled_substance),
+                                        Pair("Abuse",item.abuse),
+                                        Pair("Dependence",item.description),
+
                                         Pair("Overdosage", item.overdosage),
+
+                                        Pair("Description", item.description),
+
                                         Pair("Clinical pharmacology", item.clinical_pharmacology),
                                         Pair("Mechanism of action", item.mechanism_of_action),
                                         Pair("Pharmacodynamics", item.pharmacodynamics),
                                         Pair("Pharmacokinetics", item.pharmacokinetics),
+
+                                        Pair("Microbiology", item.microbiology),
+
                                         Pair("Nonclinical toxicology", item.nonclinical_toxicology),
                                         Pair(
                                             "Carcinogenesis and mutagenesis and impairment of fertility",
                                             item.carcinogenesis_and_mutagenesis_and_impairment_of_fertility
                                         ),
-                                        Pair(
-                                            "Animal pharmacology and/or toxicology",
-                                            item.animal_pharmacology_and_or_toxicology
-                                        ),
+                                        Pair("Animal pharmacology and/or toxicology",item.animal_pharmacology_and_or_toxicology),
+
                                         Pair("Clinical studies", item.clinical_studies),
                                         Pair("How supplied", item.how_supplied),
-                                        Pair("Storage and handling", item.storage_and_handling),
+                                        Pair("Storage and handling",item.storage_and_handling),
+                                        Pair("Safe handling warning",item.safe_handling_warning),
+
                                         Pair("Information for patients", item.information_for_patients),
+                                        Pair("Patient medication information", item.patient_medication_information),
+                                        Pair("Ask doctor", item.ask_doctor),
+                                        Pair("Ask doctor or pharmacist",item.ask_doctor_or_pharmacist),
+                                        Pair("Do not use", item.do_not_use),
+                                        Pair("Information for owners or caregivers",item.information_for_owners_or_caregivers),
+                                        Pair("Instructions for use",item.instructions_for_use),
+                                        Pair("Keep out of reach of children",item.keep_out_of_reach_of_children),
+                                        Pair("Other safety information",item.other_safety_information),
+                                        Pair("Questions",item.questions),
+
                                         Pair("Med. guide", item.spl_medguide),
                                         Pair(
                                             "Package label principal display panel",
                                             item.package_label_principal_display_panel
                                         ),
+                                        Pair("Stop use", item.stop_use),
+                                        Pair("When use", item.when_using),
                                         Pair("Patient package insert information",item.spl_patient_package_insert),
                                         Pair("Unclassified section", item.spl_unclassified_section),
-                                        Pair("Recent major changes", item.recent_major_changes)
+
+                                        Pair("Laboratory tests", item.laboratory_tests),
+                                        Pair("Recent major changes", item.recent_major_changes),
+                                        Pair("References", item.references),
+                                        Pair("Product data elements",item.spl_product_data_elements),
+                                        Pair("Active ingredient(s)", item.active_ingredient),
+                                        Pair("Inactive ingredient(s)", item.inactive_ingredient)/*,
+                                        Pair("Effective time", item.effective_time)*/
                                     ).filter { it.second.isNotEmpty() }
 
                                     val tables = listOf(
@@ -571,43 +621,47 @@ fun FunWithOpenFDA(modifier: Modifier= Modifier) {
                                         Pair("Recent major changes", item.recent_major_changes_table)
                                     ).filter { it.second.isNotEmpty() }
 
-                                    Column(modifier = Modifier.weight(0.5f)) {
-                                        Text(text = "Details",  style = MaterialTheme.typography.headlineMedium)
-                                        LazyColumn {
-                                            itemsIndexed(items = features, key = { _, it -> it.first }) { idx, iu ->
-                                                Text(
-                                                    modifier = Modifier.clickable(
-                                                        enabled = iu.second.isNotEmpty(),
-                                                        onClick = {
-                                                            showFeature = true
-                                                            showHtml = false
-                                                            shownFeature = features[idx]
-                                                        }
-                                                    ),
-                                                    text = iu.first,
-                                                    style = MaterialTheme.typography.bodyLarge,
-                                                    color = Color.Blue)
-                                                HorizontalDivider(thickness = 1.dp)
+                                    if (features.isNotEmpty()) {
+                                        Column(modifier = Modifier.weight(0.5f)) {
+                                            Text(text = "Details", style = MaterialTheme.typography.headlineMedium)
+                                            LazyColumn {
+                                                itemsIndexed(items = features, key = { _, it -> it.first }) { idx, iu ->
+                                                    Text(
+                                                        modifier = Modifier.clickable(
+                                                            enabled = iu.second.isNotEmpty(),
+                                                            onClick = {
+                                                                showFeature = true
+                                                                showHtml = false
+                                                                shownFeature = features[idx]
+                                                            }
+                                                        ),
+                                                        text = iu.first,
+                                                        style = MaterialTheme.typography.bodyLarge,
+                                                        color = Color.Blue)
+                                                    HorizontalDivider(thickness = 1.dp)
+                                                }
                                             }
                                         }
                                     }
-                                    Column(modifier = Modifier.weight(0.5f)) {
-                                        Text(text = "Tables",  style = MaterialTheme.typography.headlineMedium)
-                                        LazyColumn {
-                                            itemsIndexed(items = tables, key = { _, it -> it.first }) { idx, iu ->
-                                                Text(
-                                                    modifier = Modifier.clickable(
-                                                        enabled = iu.second.isNotEmpty(),
-                                                        onClick = {
-                                                            showFeature = true
-                                                            showHtml = true
-                                                            shownFeature = tables[idx]
-                                                        }
-                                                    ),
-                                                    text = iu.first,
-                                                    style = MaterialTheme.typography.bodyLarge,
-                                                    color = Color.Blue)
-                                                HorizontalDivider(thickness = 1.dp)
+                                    if (tables.isNotEmpty()) {
+                                        Column(modifier = Modifier.weight(0.5f)) {
+                                            Text(text = "Tables", style = MaterialTheme.typography.headlineMedium)
+                                            LazyColumn {
+                                                itemsIndexed(items = tables, key = { _, it -> it.first }) { idx, iu ->
+                                                    Text(
+                                                        modifier = Modifier.clickable(
+                                                            enabled = iu.second.isNotEmpty(),
+                                                            onClick = {
+                                                                showFeature = true
+                                                                showHtml = true
+                                                                shownFeature = tables[idx]
+                                                            }
+                                                        ),
+                                                        text = iu.first,
+                                                        style = MaterialTheme.typography.bodyLarge,
+                                                        color = Color.Blue)
+                                                    HorizontalDivider(thickness = 1.dp)
+                                                }
                                             }
                                         }
                                     }
