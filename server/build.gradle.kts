@@ -15,13 +15,21 @@ application {
 
 dependencies {
     implementation(projects.shared)
-    implementation(libs.logback)
+    runtimeOnly(libs.logback)
     implementation(libs.ktor.serverCore)
     implementation(libs.ktor.serverNetty)
+    implementation(libs.ktor.server.call.logging)
     testImplementation(libs.ktor.serverTestHost)
+    implementation(libs.ktor.server.cors)
+    implementation(libs.ktor.server.compression)
 
-    implementation (libs.ktor.contentnegotiation.json)
+
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.cio)
+
+    implementation (libs.ktor.server.contentnegotiation.json)
     implementation(libs.ktor.serialization.kotlinx.json)
+    implementation(libs.ktor.client.content)
 
     testImplementation(libs.kotlin.testJunit)
 }

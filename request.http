@@ -1,1 +1,15 @@
+GET http://127.0.0.1:8080/openfda?search=openfda.brand_name:risperidone+AND+openfda.manufacturer_name:proficient&limit=10
+Accept: application/json
+
+###
+POST http://127.0.0.1:8080/context?indication=agitation
+Content-Type: application/json
+
+["this product treats asthma", "this product does not treat asthma"
+]
+
+###
+GET http://127.0.0.1:8080/
+
+###
 GET https://api.fda.gov/drug/label.json?search=openfda.generic_name:olanzapine

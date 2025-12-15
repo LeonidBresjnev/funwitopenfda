@@ -33,7 +33,6 @@ import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToJsonElement
@@ -86,331 +85,322 @@ fun FunWithOpenFDA(modifier: Modifier= Modifier) {
 "INTRACORONARY","INTRAGASTRIC","INTRALUMINAL","INTRALYMPHATIC","INTRAMENINGEAL","INTRATHORACIC","SUBGINGIVAL","TRANSTRACHEAL","URETERAL","URETHRAL")
 
     Column(modifier=modifier) {
-        Row(modifier=Modifier.padding(15.dp)
-            .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly) {
-            TextField(
-                value = generic,
-                onValueChange = { generic = it },
-                enabled = true,
-                singleLine = true,
-                label = { Text("generic name") },
-                keyboardOptions = KeyboardOptions.Default.copy(
-                    imeAction = ImeAction.Next
-                ),
-            )
-            TextField(
-                value = brand,
-                onValueChange = { brand = it },
-                enabled = true,
-                singleLine = true,
-                label = { Text("brand name") },
-                keyboardOptions = KeyboardOptions.Default.copy(
-                    imeAction = ImeAction.Next
-                ),
-            )
-            TextField(
-                value = manufacturer,
-                onValueChange = { manufacturer = it },
-                enabled = true,
-                singleLine = true,
-                label = { Text("Manufacturer") },
-                keyboardOptions = KeyboardOptions.Default.copy(
-                    imeAction = ImeAction.Next
-                ),
-            )
-            TextField(
-                value = indication,
-
-                onValueChange = { indication = it },
-                enabled = true,
-                singleLine = true,
-                keyboardOptions = KeyboardOptions.Default.copy(
-                    imeAction = ImeAction.Next
-                ),
-                label = { Text("Indication") }
-            )
-
-            ExposedDropdownMenuBox(
-                expanded = extendedProductType,
-                onExpandedChange = { extendedProductType = it }
-            ) {
+        LazyVerticalStaggeredGrid(
+            columns = StaggeredGridCells.Adaptive(minSize = 280.dp),
+            modifier=Modifier
+                .padding(15.dp)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalItemSpacing = 12.dp,
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp)
+        ) {
+            item {
                 TextField(
-                    modifier = Modifier.menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-                    colors = ExposedDropdownMenuDefaults.textFieldColors(),
-                    value = selectedProductType,
-                    onValueChange = {},
+                    value = generic,
+                    onValueChange = { generic = it },
+                    enabled = true,
                     singleLine = true,
-                    label = { Text("Product type") },
+                    label = { Text("generic name") },
                     keyboardOptions = KeyboardOptions.Default.copy(
                         imeAction = ImeAction.Next
                     ),
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = extendedProductType)
-                    },
-
                 )
-                DropdownMenu(
-                    expanded = extendedProductType,
-                    onDismissRequest = { extendedProductType = false }
-                ) {
-                    productTypes.forEach {
-                        DropdownMenuItem(
-                            onClick = {
-                                selectedProductType = it
-                                extendedProductType = false
-                            },
-                            text = { Text(it) }
-                        )
-                    }
-                }
             }
-
-            ExposedDropdownMenuBox(
-                expanded = extendedRoute,
-                onExpandedChange = { extendedRoute = it }
-            ) {
+            item {
                 TextField(
-                    modifier = Modifier.menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-                    colors = ExposedDropdownMenuDefaults.textFieldColors(),
-                    value = selectedRoute,
-                    onValueChange = {},
+                    value = brand,
+                    onValueChange = { brand = it },
+                    enabled = true,
                     singleLine = true,
-                    label = { Text("Route of administration") },
+                    label = { Text("brand name") },
                     keyboardOptions = KeyboardOptions.Default.copy(
                         imeAction = ImeAction.Next
                     ),
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = extendedRoute)
-                    },
+                )
+            }
+            item {
+                TextField(
+                    value = manufacturer,
+                    onValueChange = { manufacturer = it },
+                    enabled = true,
+                    singleLine = true,
+                    label = { Text("Manufacturer") },
+                    keyboardOptions = KeyboardOptions.Default.copy(
+                        imeAction = ImeAction.Next
+                    ),
+                )
+            }
+            item {
+                TextField(
+                    value = indication,
 
-                    )
-                DropdownMenu(
-                    expanded = extendedRoute,
-                    onDismissRequest = { extendedRoute = false }
+                    onValueChange = { indication = it },
+                    enabled = true,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions.Default.copy(
+                        imeAction = ImeAction.Next
+                    ),
+                    label = { Text("Indication") }
+                )
+            }
+
+            item {
+                ExposedDropdownMenuBox(
+                    expanded = extendedProductType,
+                    onExpandedChange = { extendedProductType = it }
                 ) {
-                    routes.forEach {
-                        DropdownMenuItem(
-                            onClick = {
-                                selectedRoute = it
-                                extendedRoute = false
-                            },
-                            text = { Text(it) }
+                    TextField(
+                        modifier = Modifier.menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                        colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                        value = selectedProductType,
+                        onValueChange = {},
+                        singleLine = true,
+                        label = { Text("Product type") },
+                        keyboardOptions = KeyboardOptions.Default.copy(
+                            imeAction = ImeAction.Next
+                        ),
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = extendedProductType)
+                        },
+
                         )
+                    DropdownMenu(
+                        expanded = extendedProductType,
+                        onDismissRequest = { extendedProductType = false }
+                    ) {
+                        productTypes.forEach {
+                            DropdownMenuItem(
+                                onClick = {
+                                    selectedProductType = it
+                                    extendedProductType = false
+                                },
+                                text = { Text(it) }
+                            )
+                        }
                     }
                 }
             }
 
-            TextField(
-                value = maxHits.toString(),
-                onValueChange = { maxHits = it.toIntOrNull() ?: maxHits },
-                enabled = true,
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Number,
-                    imeAction = ImeAction.Done
-                ),
-                label = {Text("hits per page")}
-            )
+            item {
+                ExposedDropdownMenuBox(
+                    expanded = extendedRoute,
+                    onExpandedChange = { extendedRoute = it }
+                ) {
+                    TextField(
+                        modifier = Modifier.menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                        colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                        value = selectedRoute,
+                        onValueChange = {},
+                        singleLine = true,
+                        label = { Text("Route of administration") },
+                        keyboardOptions = KeyboardOptions.Default.copy(
+                            imeAction = ImeAction.Next
+                        ),
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = extendedRoute)
+                        },
 
-            Button(
-                enabled = !isLoading && (generic.length >= 3 || brand.length >= 3 || indication.length >= 3 || manufacturer.length >= 3),
-                onClick = {
-                    /*CoroutineScope(context= Dispatchers.Default).launch {*/
-                    scope.launch(context = Dispatchers.Default) {
-                        val client = HttpClient {
+                        )
+                    DropdownMenu(
+                        expanded = extendedRoute,
+                        onDismissRequest = { extendedRoute = false }
+                    ) {
+                        routes.forEach {
+                            DropdownMenuItem(
+                                onClick = {
+                                    selectedRoute = it
+                                    extendedRoute = false
+                                },
+                                text = { Text(it) }
+                            )
+                        }
+                    }
+                }
+            }
 
-                            install(HttpTimeout) {
-                                requestTimeoutMillis = 5000
+            item {
+                TextField(
+                    value = maxHits.toString(),
+                    onValueChange = { maxHits = it.toIntOrNull() ?: maxHits },
+                    enabled = true,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number,
+                        imeAction = ImeAction.Done
+                    ),
+                    label = { Text("hits per page") }
+                )
+            }
+            item {
+                Button(
+                    enabled = !isLoading && (generic.length >= 3 || brand.length >= 3 || indication.length >= 3 || manufacturer.length >= 3),
+                    onClick = {
+                        /*CoroutineScope(context= Dispatchers.Default).launch {*/
+                        scope.launch(context = Dispatchers.Default) {
+                            val client = HttpClient {
+
+                                install(HttpTimeout) {
+                                    requestTimeoutMillis = 15_000   // whole request
+                                    connectTimeoutMillis = 15_000   // TCP connect
+                                    socketTimeoutMillis = 15_000
+
+                                }
+
+                                install(ContentNegotiation) {
+                                    json(
+                                        Json {
+                                            ignoreUnknownKeys = true
+                                            /*   isLenient = true*/
+                                        },
+                                        contentType = ContentType.Application.Json
+                                    )
+                                }
+                            }
+                            //println(client.engine.config.toString())
+
+                            val genericQuery = if (generic.length >= 3) "+AND+openfda.generic_name:$generic*" else ""
+                            val brandQuery = if (brand.length >= 3) "+AND+openfda.brand_name:$brand*" else ""
+                            val manufactuerQuery =
+                                if (manufacturer.length >= 3) "+AND+openfda.manufacturer_name:$manufacturer*" else ""
+                            val producttypeQuery =
+                                if (selectedProductType != "Any") "+AND+openfda.product_type:\"$selectedProductType\"" else ""
+                            val routeQuery = if (selectedRoute != "Any") "+AND+openfda.route:$selectedRoute" else ""
+                            val indicationQuery =
+                                if (indication.length >= 3) "+AND+_exists_:indications_and_usage+AND+indications_and_usage:$indication*" else ""
+
+                            val baseurl = "http://127.0.0.1:8080/openfda?search=_exists_:openfda"
+
+                            isLoading = true
+                            val resultDef = async {
+                                val httpResponse: Result<HttpResponse> = runCatching {
+                                    client.get(urlString = "$baseurl$genericQuery$brandQuery$manufactuerQuery$indicationQuery$producttypeQuery$routeQuery&limit=$maxHits")
+                                }
+                                println("inside async of FunWithOpenFDA - button click")
+                                return@async httpResponse
+                            }
+                            val result = resultDef.await()
+                            isLoading = false
+                            result.onSuccess { action ->
+                                status = action.status.value
+                                val headers = action.headers.entries()
+                                println("Headers:")
+                                headers.forEach {
+                                    println("${it.key}: ${it.value}, ${it.value.joinToString(", ")}")
+                                }
+                                //linkNext = action.headers["Link"] ?: ""
+                                response = if (action.status == HttpStatusCode.OK) {
+                                    action.body<OpenFDAEntry>()
+                                } else {
+                                    null
+                                }
+                                filter = emptyList()
+                            }
+                            result.onFailure { error ->
+                                println(error.message)
+                                response = null
                             }
 
+
+
+                            client.close()
+                        }
+                    }
+                ) {
+                    Text("Search")
+                }
+            }
+            item {
+                Button(
+                    enabled = (!isLoading) && (response != null) && (response!!.results.any { it.indications_and_usage.isNotEmpty() }) && (indication.isNotEmpty()),
+                    onClick = {
+                        isLoading = true
+                        val client = HttpClient {
                             install(ContentNegotiation) {
                                 json(
                                     Json {
                                         ignoreUnknownKeys = true
-                                        /*   isLenient = true*/
                                     },
                                     contentType = ContentType.Application.Json
                                 )
                             }
-                        }
-                        //println(client.engine.config.toString())
+                            install(HttpTimeout) {
+                                requestTimeoutMillis = 15_000   // whole request
+                                connectTimeoutMillis = 15_000   // TCP connect
+                                socketTimeoutMillis = 15_000
 
-                        val genericQuery = if (generic.length >= 3) "+AND+openfda.generic_name:$generic*" else ""
-                        val brandQuery = if (brand.length >= 3) "+AND+openfda.brand_name:$brand*" else ""
-                        val manufactuerQuery = if (manufacturer.length >= 3) "+AND+openfda.manufacturer_name:$manufacturer*" else ""
-                        val producttypeQuery = if (selectedProductType != "Any") "+AND+openfda.product_type:\"$selectedProductType\"" else ""
-                        val routeQuery = if (selectedRoute != "Any") "+AND+openfda.route:$selectedRoute" else ""
-                        val indicationQuery =
-                            if (indication.length >= 3) "+AND+_exists_:indications_and_usage+AND+indications_and_usage:$indication*" else ""
-
-                        val baseurl = "https://api.fda.gov/drug/label.json?search=_exists_:openfda"
-
-                        isLoading = true
-                        val resultDef = async {
-                            val httpResponse: Result<HttpResponse> = runCatching {
-                                client.get(urlString="$baseurl$genericQuery$brandQuery$manufactuerQuery$indicationQuery$producttypeQuery$routeQuery&limit=$maxHits")
                             }
-                            println("inside async of FunWithOpenFDA - button click")
-                            return@async httpResponse
                         }
-                        val result = resultDef.await()
-                        isLoading = false
-                        result.onSuccess { action ->
-                            status = action.status.value
-                            val headers = action.headers.entries()
-                            println("Headers:")
-                            headers.forEach {
-                                println("${it.key}: ${it.value}, ${it.value.joinToString(", ")}")
+                        val baseurl = "http://127.0.0.1:8080/context?"
+
+                        scope.launch {
+
+                            val labelList = response!!.results.map { it2 ->
+                                it2.indications_and_usage.joinToString(". ").replace("\"", "'")
                             }
-                            //linkNext = action.headers["Link"] ?: ""
-                            response = if (action.status == HttpStatusCode.OK) {
-                                action.body<OpenFDAEntry>()
-                            } else {
-                                null
-                            }
-                            filter=emptyList()
-                        }
-                        result.onFailure { error ->
-                            println(error.message)
-                            response = null
-                        }
+                            val uniqueSet = labelList.toSet()
+                            println("size=${uniqueSet.size}")
 
-
-
-                        client.close()
-                    }
-                }
-            ) {
-                Text("Search")
-            }
-            Button(
-                enabled = (!isLoading) && (response != null) && (response!!.results.any { it.indications_and_usage.isNotEmpty() }) && (indication.isNotEmpty()),
-                onClick = {
-                    isLoading = true
-                    val client = HttpClient {
-                        install(ContentNegotiation) {
-                            json(
-                                Json {
-                                    ignoreUnknownKeys = true
-                                },
-                                contentType = ContentType.Application.Json
-                            )
-                        }
-                    }
-                    val baseurl =
-                        "https://datascience-azure-openai-swedencentral.openai.azure.com/openai/responses?api-version=2025-04-01-preview"
-
-                    scope.launch {
-                        val system = OpenAIInput(
-                            role = "system",
-                            content = "determine if the users provide a label for a drug that treats ${indication.removeSurrounding("\"")}, either in monotherapy or in combination with other drugs. Only use information from the label, and not from anywhere else. answer true or false."
-
-                        )
-
-
-                        val labelList = response!!.results.map { it2 ->
-                            it2.indications_and_usage.joinToString(". ").replace("\"", "'")
-                        }
-                        val uniqueSet = labelList.toSet()
-                        println("size=${uniqueSet.size}")
-
-                        val responsesDef = uniqueSet.map { it2->
-
-                            val input0 = Json.encodeToJsonElement(
-                                value = listOf(
-                                    system, OpenAIInput(
-                                        role="user",
-                                        content=it2
-                                    )
-                                )
-                            )
-                            val body = """{
-"model": "gpt-5-mini",
-"input": $input0,
-"text": {
-"format": {
-"type": "json_schema",
-"name": "person",
-"strict": true,
-"schema": {
-"type": "object",
-"properties": {
-"name": {
-"type": "boolean"
-}
-},
-"required": [
-"name"
-],
-"additionalProperties": false
-}
-}
-},
-"temperature": 1.0
-}""".trimIndent()
-                            //var tokenFile = File("secrets/apikey")
-
-                            val resultDef = async {
+                            val resultDef = async(context= Dispatchers.Default) {
                                 val httpResponse: Result<HttpResponse> = runCatching {
                                     //println("inside runCatching")
-                                    client.post(baseurl) {
+                                    println(baseurl + "indication=$indication")
+                                    val response = client.post(baseurl + "indication=$indication") {
+
+                                        timeout {
+                                            requestTimeoutMillis = 15000L
+                                        }
                                         contentType(ContentType.Application.Json)
                                         headers {
                                             append(HttpHeaders.Accept, value = "application/json")
                                         }
 
-                                        
-                                        //println(body)
-                                        setBody(body)
+
+
+                                        setBody(Json.encodeToJsonElement(uniqueSet))
                                     }
+                                    return@runCatching response
                                 }
-                                //  println("inside async - after post")
                                 return@async httpResponse
                             }
-                            return@map resultDef
-                        }
+                            val result = resultDef.await()
 
-                        val uniqueResponses = responsesDef.awaitAll()
-
-                        val uniqueAnswers = uniqueResponses.map { result ->
-                            result.onSuccess { action ->
-                                println("success")
-                                println(action.status.value)
-                                val openAIresponse = if (action.status == HttpStatusCode.OK) {
-                                    action.body<OpenAIResponse>()
-                                } else {
-                                    null
+                            val uniqueAnswers = result.run {
+                                onSuccess { action ->
+                                    if (action.status == HttpStatusCode.OK) {
+                                        action.headers.entries().forEachIndexed { idx,it ->
+                                            println("$idx ${it.key}: ${it.value}")
+                                        }
+                                        return@run action.body<List<Boolean>>()
+                                    } else {
+                                        return@run emptyList()
+                                    }
                                 }
-                                println(openAIresponse?.output?.first { it.type == "message" }?.content?.joinToString { it.text }
-                                    ?: "?")
-                                return@map openAIresponse?.output?.first { it.type == "message" }?.content?.first()?.text?.contains(
-                                    other = "True",
-                                    ignoreCase = true
-                                )?:false
-                            }
+                                onFailure { error ->
+                                    println(error.message)
+                                    return@run emptyList()
+                                }
+                                return@run emptyList()
 
-
-                            result.onFailure { error ->
-                                println(error.message)
                             }
-                            return@map false
+                            if (uniqueAnswers.size == uniqueSet.size) {
+                                val uniqueFilter = uniqueSet.map { it.hashCode() }.zip(uniqueAnswers).toMap()
+                                filter = labelList.map { uniqueFilter[it.hashCode()] ?: false }
+
+                            }
+                            isLoading = false
+
                         }
-
-                        val uniqueFilter = uniqueSet.map { it.hashCode() }.zip(uniqueAnswers).toMap()
-                        filter = labelList.map { uniqueFilter[it.hashCode()]?:false }
-
-                        isLoading = false
-
                     }
+                ) {
+                    Text("context filter")
                 }
-            ) {
-                Text("context filter")
             }
-            Checkbox(
-                  checked=applyFilter,
-                onCheckedChange = { applyFilter = it }
-            )
+            item {
+                Checkbox(
+                    checked = applyFilter,
+                    onCheckedChange = { applyFilter = it }
+                )
+            }
             /*
         IconButton(
             onClick = {
@@ -550,7 +540,7 @@ Pair("Purpose", item.purpose),
                                         Pair("Drug abuse and dependence",item.drug_abuse_and_dependence),
                                         Pair("Controlled substance",item.controlled_substance),
                                         Pair("Abuse",item.abuse),
-                                        Pair("Dependence",item.description),
+                                        Pair("Dependence",item.dependence),
 
                                         Pair("Overdosage", item.overdosage),
 
