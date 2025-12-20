@@ -3,6 +3,7 @@ package com.openfda.funwitopenfda
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -20,7 +21,7 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.utils.io.*
-import io.ktor.utils.io.jvm.javaio.copyTo
+//import io.ktor.utils.io.jvm.javaio.copyTo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -44,8 +45,12 @@ fun Application.configureHTTP() {
         allowMethod(HttpMethod.Get)
         allowMethod(HttpMethod.Post)
         allowHeader(HttpHeaders.ContentType)
+        allowHost("localhost:8080", schemes = listOf("http"))
         allowHost("localhost:8081", schemes = listOf("http"))
-        //anyHost() // @TODO: Don't do this in production if possible. Try to limit it.
+        allowHost("localhost:8082", schemes = listOf("http"))
+        allowHost("hluu3305h", schemes = listOf("http"))
+        //allowHost("localhost:*", schemes = listOf("http"))
+        //anyHost()  Don't do this in production if possible. Try to limit it.
     }
 
     install(Compression) {
@@ -71,6 +76,13 @@ fun Application.module() {
     val key = apiFile.readText()
 
     val client = HttpClient(CIO) {
+
+        install(HttpTimeout) {
+            requestTimeoutMillis = 45_000   // whole request
+            connectTimeoutMillis = 45_000   // TCP connect
+            socketTimeoutMillis = 45_000
+        }
+
         install(plugin= io.ktor.client.plugins.contentnegotiation.ContentNegotiation) {
             json(
                 Json {
@@ -87,14 +99,15 @@ fun Application.module() {
         get("/openfda") {
 
             val rawQuery = call.request.queryString() // exactly what the client sent after '?'
+            println("rawQuery=$rawQuery")
 
-            val upstreamUrl =
-                if (rawQuery.isBlank()) {
-                    "https://api.fda.gov/drug/label.json"
-                } else {
-                    "https://api.fda.gov/drug/label.json?$rawQuery"
-                }
-
+            val upstreamUrl = if (rawQuery.isBlank()) {
+                "https://api.fda.gov/drug/label.json"
+            } else if (rawQuery.startsWith("link=")) {
+                rawQuery.substringAfter("link=")
+            } else {
+                "https://api.fda.gov/drug/label.json?$rawQuery"
+            }
             println("upstreamUrl=$upstreamUrl")
             val resultDef = async(context=Dispatchers.IO) {
                 val httpResponse: Result<HttpResponse> = runCatching {

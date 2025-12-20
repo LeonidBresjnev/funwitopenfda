@@ -37,7 +37,9 @@ import kotlinx.serialization.json.Json
 
 
 @Composable
-fun Packages(productNdc: List<String>, onDismissRequest: () -> Unit) {
+fun Packages(productNdc: List<String>,
+             onDismissRequest: () -> Unit,
+             client: HttpClient) {
 
     var response by remember { mutableStateOf<List<OpenFdaNdc?>>(emptyList()) }
     var finished by remember { mutableStateOf(false) }
@@ -47,22 +49,7 @@ fun Packages(productNdc: List<String>, onDismissRequest: () -> Unit) {
         isLoading = true
         val baseUrl = "https://api.fda.gov/drug/ndc.json?search=_exists_:product_ndc+AND+"
         if (productNdc.isEmpty()) return@LaunchedEffect
-        val client = HttpClient {
 
-            install(HttpTimeout) {
-                requestTimeoutMillis = 5000
-            }
-
-            install(ContentNegotiation) {
-                json(
-                    Json {
-                        ignoreUnknownKeys = true
-                        /*   isLenient = true*/
-                    },
-                    contentType = ContentType.Application.Json
-                )
-            }
-        }
 
         val resultDefs = productNdc.map {
             async(context = Dispatchers.Default) {

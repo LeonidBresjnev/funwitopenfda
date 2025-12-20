@@ -31,7 +31,8 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(projects.shared)
 
-
+            //implementation("androidx.compose.material:material-icons-extended:1.7.8")
+            implementation(compose.materialIconsExtended)
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.content)
             implementation(libs.ktor.serialization.kotlinx.json)

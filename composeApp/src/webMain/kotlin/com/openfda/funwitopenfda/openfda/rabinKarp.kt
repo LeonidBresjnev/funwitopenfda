@@ -39,3 +39,10 @@ fun String.rabinKarp(word: String): Collection<Int> {
     }
     return result
 }
+
+
+fun String.rabinKarp(words: List<String> = emptyList()): List<Collection<Int>> {
+    return words.map {
+        this.rabinKarp(it)
+    }
+}

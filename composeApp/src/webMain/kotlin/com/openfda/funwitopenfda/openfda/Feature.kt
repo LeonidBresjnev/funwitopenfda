@@ -1,18 +1,18 @@
 package com.openfda.funwitopenfda.openfda
 
+import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -24,20 +24,18 @@ import androidx.compose.ui.viewinterop.WebElementView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.browser.document
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import org.w3c.dom.HTMLDivElement
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun Feature(feature: Pair<String,List<String>>,
             onDismissRequest: () -> Unit,
-            searchStr: String="",
+            searchStrs: List<String> = emptyList(),
             html: Boolean=false) {
 
-    val webViewWidth = remember { mutableStateOf(0.dp) }
-    val webViewHeight = remember { mutableStateOf(0.dp) }
-    val coroutineScope = rememberCoroutineScope()
+    //val webViewWidth = remember { mutableStateOf(0.dp) }
+    //val webViewHeight = remember { mutableStateOf(0.dp) }
+    //val coroutineScope = rememberCoroutineScope()
 
     Dialog(
         onDismissRequest = onDismissRequest,
@@ -54,64 +52,80 @@ fun Feature(feature: Pair<String,List<String>>,
             tonalElevation = 6.dp
         ) {
             Column(modifier= Modifier.padding(16.dp)) {
+                val state = rememberLazyListState()
                 Text(text=feature.first, style = MaterialTheme.typography.displayMedium.copy(fontWeight = Bold))
 
                 if (!html) {
-                    LazyColumn {
-                    itemsIndexed(items = feature.second) { idx,iu ->
-                            val unquoted = searchStr.lowercase().removeSurrounding("\"")
-                            println("searchstr: $searchStr unquoted: $unquoted")
-                            if (unquoted.isNotEmpty()) {
-                                val rabinKarp = iu.lowercase().rabinKarp(unquoted)
-                                val builder = AnnotatedString.Builder()
-                                builder.append(iu)
-                                rabinKarp.forEach {
 
-                                    builder.addStyle(
-                                        style = SpanStyle(fontWeight = Bold),
-                                        start = it,
-                                        end = it + unquoted.length
-                                    )
+                    Box(modifier=Modifier.fillMaxSize()) {
+                        LazyColumn(
+                            state = state,
+                            modifier = Modifier.fillMaxSize().padding(end = 12.dp) // Leave space for bar
+                        ) {
+                            itemsIndexed(items = feature.second) { idx, iu ->
+                                val unquoted = searchStrs.map {
+                                    it.lowercase().removeSurrounding("\"")
                                 }
-                                println(rabinKarp.joinToString(", "))
-                                Text(text = builder.toAnnotatedString()/*, style = MaterialTheme.typography.bodyLarge*/)
+                                //println("searchstr: $searchStr unquoted: $unquoted")
+                                if (unquoted.any { it.isNotBlank() }) {
+                                    val rabinKarp = iu.lowercase().rabinKarp(unquoted)
+                                    val builder = AnnotatedString.Builder()
+                                    builder.append(iu)
+                                    rabinKarp.zip(unquoted).forEach {
+                                        it.first.forEach { it2 ->
+                                            builder.addStyle(
+                                                style = SpanStyle(fontWeight = Bold),
+                                                start = it2,
+                                                end = it2 + it.second.length
+                                            )
+                                        }
+                                    }
+                                    //println(rabinKarp.joinToString(", "))
+                                    Text(text = builder.toAnnotatedString()/*, style = MaterialTheme.typography.bodyLarge*/)
 
-                            } else Text(iu)
-                        if (idx != feature.second.lastIndex) HorizontalDivider(thickness = 1.dp)
+                                } else Text(iu)
+                                if (idx != feature.second.lastIndex) HorizontalDivider(thickness = 1.dp)
+                            }
+
                         }
 
+                        VerticalScrollbar(
+                            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+                            adapter = rememberScrollbarAdapter(scrollState = state)
+                        )
                     }
                 } else {
-                    Column(modifier=Modifier.fillMaxSize()) {
-                        feature.second.forEachIndexed { idx, iu ->
-                            println("table $idx, $iu")
-                            Box(
-                                modifier = Modifier.weight(1f)
 
-                                    .border(1.dp, Color.Black)
-                            ) {
-                                WebElementView(
-                                    modifier = Modifier.padding(10.dp)
-                                       /* .sizeIn(
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            feature.second.forEachIndexed { idx, iu ->
+                                println("table $idx, $iu")
+                                Box(
+                                    modifier = Modifier.weight(1f)
+
+                                        .border(1.dp, Color.Black)
+                                ) {
+                                    WebElementView(
+                                        modifier = Modifier.padding(10.dp)
+                                            /* .sizeIn(
                                             minWidth = webViewWidth.value+50.dp,
                                             minHeight = webViewHeight.value+50.dp)*/ // Fallback min sizes
-                                        .fillMaxSize(),
-                                    factory = {
-                                        val tableElement = (document.createElement("div") as HTMLDivElement).apply {
-                                            style.overflowY="auto"
-                                            style.maxHeight="100%"
-                                            style.overflowX="auto"
-                                            style.maxWidth="100%"
-                                           /* style.padding="10px"*/
+                                            .fillMaxSize(),
+                                        factory = {
+                                            val tableElement = (document.createElement("div") as HTMLDivElement).apply {
+                                                style.overflowY = "auto"
+                                                style.maxHeight = "100%"
+                                                style.overflowX = "auto"
+                                                style.maxWidth = "100%"
+                                                /* style.padding="10px"*/
 
-                                        }
+                                            }
 
-                                         //tableElement.innerHTML = iu
-                                        return@WebElementView tableElement
-                                    },
-                                    update = { element ->
-                                        element.innerHTML = iu
-                                       /* coroutineScope.launch {
+                                            //tableElement.innerHTML = iu
+                                            return@WebElementView tableElement
+                                        },
+                                        update = { element ->
+                                            element.innerHTML = iu
+                                            /* coroutineScope.launch {
                                             delay(300) // Brief delay for DOM to settle (adjust if needed)
                                             val measuredWidth = element.offsetWidth.toFloat().dp
                                             val measuredHeight = element.offsetHeight.toFloat().dp
@@ -119,12 +133,13 @@ fun Feature(feature: Pair<String,List<String>>,
                                             webViewHeight.value = measuredHeight
                                             println("${webViewWidth.value}, ${webViewHeight.value}")
                                         }*/
-                                    }
-                                )
+                                        }
+                                    )
+                                }
+
+                                if (idx != feature.second.lastIndex) HorizontalDivider(thickness = 1.dp)
                             }
 
-                            if (idx != feature.second.lastIndex) HorizontalDivider(thickness = 1.dp)
-                        }
                     }
                 }
             }
