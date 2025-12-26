@@ -21,10 +21,21 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.*
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
 //import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import com.openfda.funwitopenfda.openfda.Feature
 import com.openfda.funwitopenfda.openfda.Packages
@@ -103,6 +114,15 @@ fun FunWithOpenFDA(
 "INTRACAVITARY","INTRASYNOVIAL","INTRAMEDULLARY","INTRAPLEURAL","HEMODIALYSIS","INTRAUTERINE","INTRAVENTRICULAR","INTRACARDIAC","SUBARACHNOID","INTRACAVERNOUS","OROPHARYNGEAL","SUBCONJUNCTIVAL",
 "CONJUNCTIVAL","INTRABRONCHIAL","INTRASINAL","SUPRACHOROIDAL","ENDOCERVICAL","INTRACAMERAL","INTRAEPIDERMAL","TRANSMUCOSAL","ENTERAL","INTRACANALICULAR","INTRACEREBRAL",
 "INTRACORONARY","INTRAGASTRIC","INTRALUMINAL","INTRALYMPHATIC","INTRAMENINGEAL","INTRATHORACIC","SUBGINGIVAL","TRANSTRACHEAL","URETERAL","URETHRAL")
+
+    val linkStyles = TextLinkStyles(
+        style = SpanStyle(color = Color.Blue, textDecoration = TextDecoration.Underline),
+        hoveredStyle = SpanStyle(color = Color.Cyan),
+        pressedStyle = SpanStyle(color = Color.Red)
+    )
+
+    val focusRequester = remember { FocusRequester() }
+
 
     Column(modifier=modifier) {
         Row(modifier=Modifier.fillMaxWidth()) {
@@ -331,6 +351,9 @@ fun FunWithOpenFDA(
                             contextTerm = indication.ifEmpty { adverseEvent.ifEmpty { "" } }
 
                             filter = emptyList()
+
+                            focusRequester.requestFocus()
+
                             loadedPages = 1
 
 
@@ -378,7 +401,7 @@ fun FunWithOpenFDA(
                 TextField(
                     value=contextTerm,
                     onValueChange = { contextTerm = it },
-                    enabled = true,
+                    enabled = false,
                     singleLine = true,
                     label = { Text("context term") },
                     keyboardOptions = KeyboardOptions.Default.copy(
@@ -387,7 +410,7 @@ fun FunWithOpenFDA(
                 )
 
                 Button(
-                    enabled = (!isLoading) && (response != null) && (response!!.results.any { it.indications_and_usage.isNotEmpty() }) && (indication.isNotEmpty()),
+                    enabled = false && (!isLoading) && (response != null) && (response!!.results.any { it.indications_and_usage.isNotEmpty() }) && (indication.isNotEmpty()),
                     onClick = {
                         isLoading = true
                         val baseurl = "http://10.11.12.120:8085/context?"
@@ -454,6 +477,7 @@ fun FunWithOpenFDA(
                 }
 
                 Checkbox(
+                    enabled=false,
                     checked = applyFilter,
                     onCheckedChange = { applyFilter = it }
                 )
@@ -559,6 +583,13 @@ fun FunWithOpenFDA(
 
         if (!isLoading && repository.isNotEmpty() && (currentPageInterval.first>=0)) {
 
+            var containerHeight by remember { mutableStateOf(0) }
+
+            LaunchedEffect(repository.size) {
+                val focusresult = focusRequester.requestFocus(focusDirection = FocusDirection.Enter)
+                println("Focus result: $focusresult")
+            }
+
             HorizontalPager(state=pagerState) { page ->
                 val gridState = rememberLazyStaggeredGridState() // 1. Remember state
                 val scope = rememberCoroutineScope()
@@ -573,9 +604,49 @@ fun FunWithOpenFDA(
                     state = gridState,
                     modifier = Modifier
                         .padding(top = 2.dp, end = 24.dp)
-                        .draggable(state = dragState, orientation = Orientation.Vertical),
-                    columns = StaggeredGridCells.Adaptive(860.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        .draggable(state = dragState, orientation = Orientation.Vertical)
+
+                        .focusRequester(focusRequester)
+                        .focusable()
+                        .onGloballyPositioned { coordinates ->
+                            containerHeight = coordinates.size.height
+                        }
+                        .onKeyEvent { keyEvent ->
+                            if (keyEvent.type == KeyEventType.KeyDown) {
+                                val scrollAmount = 20f
+                                when (keyEvent.key) {
+                                    Key.PageDown -> {
+                                        scope.launch {
+                                            gridState.scrollBy(containerHeight.toFloat())
+                                        }
+                                        true
+                                    }
+                                    Key.PageUp -> {
+                                        scope.launch {
+                                            gridState.scrollBy(-containerHeight.toFloat())
+                                        }
+                                        true
+                                    }
+                                    Key.DirectionUp -> {
+                                        scope.launch {
+                                            gridState.scrollBy(-scrollAmount)
+                                        }
+                                        true
+                                    }
+                                    Key.DirectionDown -> {
+                                        scope.launch {
+                                            gridState.scrollBy(scrollAmount)
+                                        }
+                                        true
+                                    }
+
+                                    else -> false
+                                }
+                            } else false
+                        }
+                    ,
+                    columns = StaggeredGridCells.Adaptive(minSize=860.dp),
+                    horizontalArrangement = Arrangement.spacedBy(space=16.dp),
                     verticalItemSpacing = 16.dp,
                     contentPadding = PaddingValues(
                         start = 8.dp,
@@ -650,17 +721,34 @@ fun FunWithOpenFDA(
                                                 }",
                                                 style = MaterialTheme.typography.bodyLarge
                                             )
+                                            val packageInfo = buildAnnotatedString {
+                                                withLink(
+                                                    LinkAnnotation.Clickable(
+                                                        tag = "package_info",
+                                                        styles = linkStyles,
+                                                        linkInteractionListener = {
+                                                            // This opens your dialog by updating state
+                                                            productNdc = item.openfda.product_ndc
+                                                            showPackages = true
+                                                        }
+                                                    )
+                                                ) {
+                                                    append("Package information")
+                                                }
+                                            }
+                                            Text(text = packageInfo)
+                                            /*
                                             Text(
                                                 text = "Package information",
                                                 color = Color.Blue,
-                                                style = MaterialTheme.typography.bodyLarge,
+                                                style = TextLinkStyles /* MaterialTheme.typography.bodyLarge*/,
                                                 modifier = Modifier.clickable(
                                                     onClick = {
                                                         productNdc = item.openfda.product_ndc
                                                         showPackages = true
                                                     }
                                                 )
-                                            )
+                                            )*/
                                             if (filter.size==response?.results?.size) {
                                                 Text("Indication in right context: ${if (filter[idx]) "Yes" else "No"} ")
                                             }

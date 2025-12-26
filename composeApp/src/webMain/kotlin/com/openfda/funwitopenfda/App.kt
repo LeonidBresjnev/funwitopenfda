@@ -7,6 +7,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.auth.Auth
+import io.ktor.client.plugins.auth.providers.BasicAuthCredentials
+import io.ktor.client.plugins.auth.providers.basic
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
@@ -28,6 +31,20 @@ fun App() {
                 isLenient = true
             })
         }
+
+
+        install(Auth) {
+            basic {
+                sendWithoutRequest { request ->
+                    // Only send preemptively to your specific backend host
+                    request.url.host == "visualopenfda.ew.r.appspot.com"
+                }
+                credentials {
+                    BasicAuthCredentials(username = "funWithOpenFDA", password = "W3@r30nTh3DrugS")
+                }
+                realm = "Access to the '/' path"
+            }
+        }
     }
 
 
@@ -38,35 +55,13 @@ fun App() {
                 title = { Text("Fun with OpenFDA") },
                 colors= TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary
-                )) }
-            /*,
-            bottomBar = {  Text(text = getPlatform().name) }*/
+                ))
+            }
+
         ) { innerPadding ->
-            FunWithOpenFDA(modifier = Modifier.padding(innerPadding),
+            FunWithOpenFDA(
+                modifier = Modifier.padding(innerPadding),
                 httpClient = client)
-            /*
-        var showContent by remember { mutableStateOf(false) }
-        Column(
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .safeContentPadding()
-                .fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Button(onClick = { showContent = !showContent }) {
-                Text("Click me!")
-            }
-            AnimatedVisibility(showContent) {
-                val greeting = remember { Greeting().greet() }
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Image(painterResource(Res.drawable.compose_multiplatform), null)
-                    Text("Compose: $greeting")
-                }
-            }
-        }*/
         }
     }
 

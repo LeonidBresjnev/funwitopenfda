@@ -22,6 +22,7 @@ dependencies {
     testImplementation(libs.ktor.serverTestHost)
     implementation(libs.ktor.server.cors)
     implementation(libs.ktor.server.compression)
+    implementation(libs.ktor.server.auth)
 
 
     implementation(libs.ktor.client.core)

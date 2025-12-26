@@ -9,6 +9,10 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
+import io.ktor.server.auth.Authentication
+import io.ktor.server.auth.UserIdPrincipal
+import io.ktor.server.auth.authenticate
+import io.ktor.server.auth.basic
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.server.plugins.compression.Compression
@@ -69,6 +73,19 @@ fun Application.configureHTTP() {
             }
         )
     }
+
+    install(plugin= Authentication) {
+        basic("auth-basic") {
+            realm = "Access to the '/' path"
+            validate { credentials ->
+                if (credentials.name=="funWithOpenFDA" && credentials.password=="W3@r30nTh3DrugS") {
+                    UserIdPrincipal(credentials.name)
+                } else {
+                    null
+                }
+            }
+        }
+    }
 }
 
 fun Application.module() {
@@ -96,92 +113,94 @@ fun Application.module() {
 
     configureHTTP()
     routing {
-        get("/openfda") {
 
-            val rawQuery = call.request.queryString() // exactly what the client sent after '?'
-            println("rawQuery=$rawQuery")
+        authenticate("auth-basic") {
+            get("/openfda") {
 
-            val upstreamUrl = if (rawQuery.isBlank()) {
-                "https://api.fda.gov/drug/label.json"
-            } else if (rawQuery.startsWith("link=")) {
-                rawQuery.substringAfter("link=")
-            } else {
-                "https://api.fda.gov/drug/label.json?$rawQuery"
-            }
-            println("upstreamUrl=$upstreamUrl")
-            val resultDef = async(context=Dispatchers.IO) {
-                val httpResponse: Result<HttpResponse> = runCatching {
-                    val upstreamResponse = client.get(upstreamUrl)
+                val rawQuery = call.request.queryString() // exactly what the client sent after '?'
+                println("rawQuery=$rawQuery")
 
-
-                    return@runCatching upstreamResponse
+                val upstreamUrl = if (rawQuery.isBlank()) {
+                    "https://api.fda.gov/drug/label.json"
+                } else if (rawQuery.startsWith("link=")) {
+                    rawQuery.substringAfter("link=")
+                } else {
+                    "https://api.fda.gov/drug/label.json?$rawQuery"
                 }
-                return@async httpResponse
-            }
+                println("upstreamUrl=$upstreamUrl")
+                val resultDef = async(context = Dispatchers.IO) {
+                    val httpResponse: Result<HttpResponse> = runCatching {
+                        val upstreamResponse = client.get(upstreamUrl)
 
-            val result = resultDef.await()
 
-            result.onSuccess { action ->
-
-                withContext(Dispatchers.Default) {
-                    action.headers[HttpHeaders.Link]?.let { link ->
-                        println("link=$link")
-                        call.response.header(HttpHeaders.Link, link)
+                        return@runCatching upstreamResponse
                     }
-                    println(action.status.value)
-                    call.respondBytesWriter(
-                        contentType = action.contentType(),
-                        status = action.status
-                    ) {
-                        action.bodyAsChannel().copyTo(this)
-                    }
+                    return@async httpResponse
                 }
-             /*   call.respondOutputStream(
+
+                val result = resultDef.await()
+
+                result.onSuccess { action ->
+
+                    withContext(Dispatchers.Default) {
+                        action.headers[HttpHeaders.Link]?.let { link ->
+                            println("link=$link")
+                            call.response.header(HttpHeaders.Link, link)
+                        }
+                        println(action.status.value)
+                        call.respondBytesWriter(
+                            contentType = action.contentType(),
+                            status = action.status
+                        ) {
+                            action.bodyAsChannel().copyTo(this)
+                        }
+                    }
+                    /*   call.respondOutputStream(
                     contentType = action.contentType(),
                     status = action.status
                 ) {
                     action.bodyAsChannel().copyTo(out=this,limit=320000L)
                 }*/
 
+                }
+                result.onFailure { error ->
+                    println(error.message)
+                    call.respond(HttpStatusCode.ExpectationFailed)
+                }
+
+                //call.respondText("Ktor: ${Greeting().greet()}")
             }
-            result.onFailure { error ->
-                println(error.message)
-                call.respond(HttpStatusCode.ExpectationFailed)
+
+            get("/") {
+                call.respondText("Ktor: ${Greeting().greet()}")
             }
-
-            //call.respondText("Ktor: ${Greeting().greet()}")
-        }
-
-        get("/") {
-            call.respondText("Ktor: ${Greeting().greet()}")
-        }
-        post(path="/context") {
-            println("context route called")
-            val labels: List<String> = call.receive()
-            println("labels: $labels")
-            val indication = call.request.queryParameters["indication"] ?: ""
-            println("indication: $indication")
+            post(path = "/context") {
+                println("context route called")
+                val labels: List<String> = call.receive()
+                println("labels: $labels")
+                val indication = call.request.queryParameters["indication"] ?: ""
+                println("indication: $indication")
 
 
-            val system = OpenAIInput(
-                role = "system",
-                content = "determine if the users provide a label for a drug that treats ${indication.removeSurrounding("\"")}, either in monotherapy or in combination with other drugs. Only use information from the label, and not from anywhere else. answer true or false."
-            )
-            val baseurl =
-                "https://datascience-azure-openai-swedencentral.openai.azure.com/openai/responses?api-version=2025-04-01-preview"
+                val system = OpenAIInput(
+                    role = "system",
+                    content = "determine if the users provide a label for a drug that treats ${indication.removeSurrounding("\"")}, either in monotherapy or in combination with other drugs. Only use information from the label, and not from anywhere else. answer true or false."
+                )
+                val baseurl =
+                    "https://datascience-azure-openai-swedencentral.openai.azure.com/openai/responses?api-version=2025-04-01-preview"
 
-            val responsesDef = labels.map { it2->
+                val responsesDef = labels.map { it2 ->
 
-                val input0 = Json.encodeToJsonElement(
-                    value = listOf(
-                        system, OpenAIInput(
-                            role="user",
-                            content=it2
+                    val input0 = Json.encodeToJsonElement(
+                        value = listOf(
+                            system, OpenAIInput(
+                                role = "user",
+                                content = it2
+                            )
                         )
                     )
-                )
 
-                val body = """{
+                    val body = """{
 "model": "gpt-5-mini",
 "input": $input0,
 "text": {
@@ -205,72 +224,73 @@ fun Application.module() {
 },
 "temperature": 1.0
 }""".trimIndent()
-                //var tokenFile = File("secrets/apikey")
+                    //var tokenFile = File("secrets/apikey")
 
-                val resultDef = async {
-                    val httpResponse: Result<HttpResponse> = runCatching {
-                        //println("inside runCatching")
-                        client.post(urlString=baseurl) {
-                            contentType(ContentType.Application.Json)
-                            headers {
-                                append(
-                                    name=HttpHeaders.Accept,
-                                    value = "application/json"
-                                )
+                    val resultDef = async {
+                        val httpResponse: Result<HttpResponse> = runCatching {
+                            //println("inside runCatching")
+                            client.post(urlString = baseurl) {
+                                contentType(ContentType.Application.Json)
+                                headers {
+                                    append(
+                                        name = HttpHeaders.Accept,
+                                        value = "application/json"
+                                    )
+                                }
+
+                                bearerAuth(token = key)
+
+
+                                //println(body)
+                                setBody(body)
                             }
-
-                            bearerAuth(token = key)
-
-
-                            //println(body)
-                            setBody(body)
                         }
+                        //  println("inside async - after post")
+                        return@async httpResponse
                     }
-                    //  println("inside async - after post")
-                    return@async httpResponse
+                    return@map resultDef
                 }
-                return@map resultDef
-            }
 
 
-            val uniqueResponses = responsesDef.awaitAll()
+                val uniqueResponses = responsesDef.awaitAll()
 
-            var errorFlag = false
-            val uniqueAnswers = uniqueResponses.map { result ->
-                result.onSuccess { action ->
-                    println("success")
-                    println(action.status.value)
+                var errorFlag = false
+                val uniqueAnswers = uniqueResponses.map { result ->
+                    result.onSuccess { action ->
+                        println("success")
+                        println(action.status.value)
 
 
                         // Or: call.response.headers.append("X-Upstream-Link", link)
 
 
-                    val openAIresponse = if (action.status == HttpStatusCode.OK) {
-                        action.body<OpenAIResponse>()
-                    } else {
-                        null
+                        val openAIresponse = if (action.status==HttpStatusCode.OK) {
+                            action.body<OpenAIResponse>()
+                        } else {
+                            null
+                        }
+                        println(openAIresponse?.output?.first { it.type=="message" }?.content?.joinToString { it.text }
+                            ?: "?")
+                        return@map openAIresponse?.output?.first { it.type=="message" }?.content?.first()?.text?.contains(
+                            other = "True",
+                            ignoreCase = true
+                        ) ?: false
                     }
-                    println(openAIresponse?.output?.first { it.type == "message" }?.content?.joinToString { it.text }
-                        ?: "?")
-                    return@map openAIresponse?.output?.first { it.type == "message" }?.content?.first()?.text?.contains(
-                        other = "True",
-                        ignoreCase = true
-                    )?:false
+
+
+                    result.onFailure { error ->
+                        println(error.message)
+                        errorFlag = true
+                    }
+                    return@map false
+                }
+                if (errorFlag) call.respond(HttpStatusCode.InternalServerError)
+                call.response.headers.append("Link", "hello")
+                if (uniqueAnswers.isNotEmpty()) {
+                    call.respond<List<Boolean>>(uniqueAnswers)
                 }
 
-
-                result.onFailure { error ->
-                    println(error.message)
-                    errorFlag=true
-                }
-                return@map false
             }
-            if (errorFlag) call.respond(HttpStatusCode.InternalServerError)
-            call.response.headers.append("Link", "hello")
-            if (uniqueAnswers.isNotEmpty()) {
-                call.respond<List<Boolean>>(uniqueAnswers)
-            }
-
         }
     }
 }

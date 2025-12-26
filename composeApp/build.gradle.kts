@@ -35,6 +35,7 @@ kotlin {
             implementation(compose.materialIconsExtended)
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.content)
+            implementation(libs.ktor.client.auth)
             implementation(libs.ktor.serialization.kotlinx.json)
         }
         commonTest.dependencies {

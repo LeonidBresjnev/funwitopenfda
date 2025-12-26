@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollbarAdapter
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -33,9 +34,6 @@ fun Feature(feature: Pair<String,List<String>>,
             searchStrs: List<String> = emptyList(),
             html: Boolean=false) {
 
-    //val webViewWidth = remember { mutableStateOf(0.dp) }
-    //val webViewHeight = remember { mutableStateOf(0.dp) }
-    //val coroutineScope = rememberCoroutineScope()
 
     Dialog(
         onDismissRequest = onDismissRequest,
@@ -81,9 +79,17 @@ fun Feature(feature: Pair<String,List<String>>,
                                         }
                                     }
                                     //println(rabinKarp.joinToString(", "))
-                                    Text(text = builder.toAnnotatedString()/*, style = MaterialTheme.typography.bodyLarge*/)
+                                    SelectionContainer {
+                                        Text(
+                                            text = builder.toAnnotatedString()/*, style = MaterialTheme.typography.bodyLarge*/
+                                        )
+                                    }
+                                } else {
+                                    SelectionContainer {
+                                        Text(text = iu)
+                                    }
+                                }
 
-                                } else Text(iu)
                                 if (idx != feature.second.lastIndex) HorizontalDivider(thickness = 1.dp)
                             }
 

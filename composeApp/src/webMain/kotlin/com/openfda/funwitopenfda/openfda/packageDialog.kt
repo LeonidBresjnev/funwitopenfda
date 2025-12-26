@@ -4,36 +4,23 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight.Companion.Bold
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.openfda.funwitopenfda.OpenFdaNdc
-import io.ktor.client.HttpClient
-import io.ktor.client.call.body
-import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.request.get
-import io.ktor.client.statement.HttpResponse
-import io.ktor.http.ContentType
-import io.ktor.http.HttpStatusCode
-import io.ktor.serialization.kotlinx.json.json
+import io.ktor.client.*
+import io.ktor.client.call.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.serialization.json.Json
 
 
 @Composable
@@ -98,34 +85,24 @@ fun Packages(productNdc: List<String>,
 
             Column(modifier= Modifier.padding(16.dp)) {
                 Text(text = "Package information", style = MaterialTheme.typography.displayMedium.copy(fontWeight = Bold))
-              /*  Text("title-small",style=MaterialTheme.typography.titleSmall)
-                Text("title-medium",style=MaterialTheme.typography.titleMedium)
-                Text("title-large",style=MaterialTheme.typography.titleLarge)
-                Text(text="body-small",style=MaterialTheme.typography.bodySmall)
-                Text(text="body-medium",style=MaterialTheme.typography.bodyMedium)
-                Text(text="body-large",style=MaterialTheme.typography.bodyLarge)
-                Text(text="label-small",style=MaterialTheme.typography.labelSmall)
-                Text(text="label-medium",style=MaterialTheme.typography.labelMedium)
-                Text(text="label-large",style=MaterialTheme.typography.labelLarge)
-                Text(text="headline-small",style=MaterialTheme.typography.headlineSmall)
-                Text(text="headline-medium",style=MaterialTheme.typography.headlineMedium)
-                Text(text="headline-large",style=MaterialTheme.typography.headlineLarge)
-                Text(text="display-small",style=MaterialTheme.typography.displaySmall)
-                Text(text="display-medium",style=MaterialTheme.typography.displayMedium)
-                Text(text="display-large",style=MaterialTheme.typography.displayLarge)*/
-
 
                 if (isLoading) CircularProgressIndicator()
                 else response.forEach { response ->
                     response?.results?.forEach { result ->
-                        Text(
-                            text= result.active_ingredients.joinToString(" + ") { it.name + ": " + it.strength },
-                            style = MaterialTheme.typography.headlineMedium
-                        )
 
-                        result.packaging.forEach { pack ->
-                            Text(text = pack.description + (if (pack.sample) " (sample)" else ""), style = MaterialTheme.typography.bodyLarge)
+                        SelectionContainer {
+                            Text(
+                                text = result.active_ingredients.joinToString(" + ") { it.name + ": " + it.strength },
+                                style = MaterialTheme.typography.headlineMedium
+                            )
                         }
+
+                            result.packaging.forEach { pack ->
+                                SelectionContainer {
+                                Text(text = pack.description + (if (pack.sample) " (sample)" else ""), style = MaterialTheme.typography.bodyLarge)
+                            }
+                        }
+
                         HorizontalDivider()
                     }
                 }
