@@ -66,16 +66,16 @@ fun FunWithOpenFDA(
     modifier: Modifier= Modifier,
     httpClient: HttpClient) {
 
-    var generic by rememberSaveable { mutableStateOf("") }
-    var brand by rememberSaveable { mutableStateOf("") }
-    var manufacturer by rememberSaveable { mutableStateOf("") }
-    var indication by rememberSaveable { mutableStateOf("") }
-    var adverseEvent by rememberSaveable { mutableStateOf("") }
-    var substance by rememberSaveable { mutableStateOf("") }
-    var pharm_class_cs by rememberSaveable { mutableStateOf("") }
-    var pharm_class_epc by rememberSaveable { mutableStateOf("") }
-    var pharm_class_pe by rememberSaveable { mutableStateOf("") }
-    var pharm_class_moa by rememberSaveable { mutableStateOf("") }
+    val generic = rememberSaveable { mutableStateOf("") }
+    val brand = rememberSaveable { mutableStateOf("") }
+    val manufacturer = rememberSaveable { mutableStateOf("") }
+    val indication = rememberSaveable { mutableStateOf("") }
+    val adverseEvent = rememberSaveable { mutableStateOf("") }
+    val substance = rememberSaveable { mutableStateOf("") }
+    val pharm_class_cs = rememberSaveable { mutableStateOf("") }
+    val pharm_class_epc = rememberSaveable { mutableStateOf("") }
+    val pharm_class_pe = rememberSaveable { mutableStateOf("") }
+    val pharm_class_moa = rememberSaveable { mutableStateOf("") }
 
     var maxHits by rememberSaveable { mutableStateOf(20) }
 
@@ -137,16 +137,16 @@ fun FunWithOpenFDA(
 
 
     val allFields = listOf(
-        SearchField(label="Generic name", value=generic, onUpdate= { generic = it }, openFDAName = "openfda.generic_name"),
-        SearchField(label="Brand name", value=brand, onUpdate= { brand = it }, openFDAName = "openfda.brand_name"),
-        SearchField(label="Manufacturer", value=manufacturer, onUpdate= {manufacturer = it }, openFDAName = "openfda.manufacturer_name"),
-        SearchField(label="Substance", value=substance, onUpdate= { substance = it }, openFDAName = "openfda.substance_name"),
-        SearchField(label="Indication", value=indication, onUpdate= { indication = it }, openFDAName = "indications_and_usage"),
-        SearchField(label="Adverse reaction", value=adverseEvent, onUpdate= { adverseEvent = it }, openFDAName = "adverse_reactions"),
-        SearchField(label="Chemical structure class", value=pharm_class_cs, onUpdate= { pharm_class_cs = it }, openFDAName = "openfda.pharm_class_cs"),
-        SearchField(label="Established Pharmacologic class", value=pharm_class_epc, onUpdate= { pharm_class_epc = it }, openFDAName = "openfda.pharm_class_epc"),
-        SearchField(label="Physiologic/pharmacodynamic effect", value=pharm_class_pe, onUpdate= { pharm_class_pe = it }, openFDAName = "openfda.pharm_class_pe"),
-        SearchField(label="Mechanism of action class", value=pharm_class_moa, onUpdate= {pharm_class_moa = it }, openFDAName = "openfda.pharm_class_moa"),
+        SearchField(label="Generic name", field=generic, onUpdate= { generic.value = it }, openFDAName = "openfda.generic_name"),
+        SearchField(label="Brand name", field=brand, onUpdate= { brand.value = it }, openFDAName = "openfda.brand_name"),
+        SearchField(label="Manufacturer", field=manufacturer, onUpdate= {manufacturer.value = it }, openFDAName = "openfda.manufacturer_name"),
+        SearchField(label="Substance", field=substance, onUpdate= { substance.value = it }, openFDAName = "openfda.substance_name"),
+        SearchField(label="Indication", field=indication, onUpdate= { indication.value = it }, openFDAName = "indications_and_usage"),
+        SearchField(label="Adverse reaction", field=adverseEvent, onUpdate= { adverseEvent.value = it }, openFDAName = "adverse_reactions"),
+        SearchField(label="Chemical structure class", field=pharm_class_cs, onUpdate= { pharm_class_cs.value = it }, openFDAName = "openfda.pharm_class_cs"),
+        SearchField(label="Established Pharmacologic class", field=pharm_class_epc, onUpdate= { pharm_class_epc.value = it }, openFDAName = "openfda.pharm_class_epc"),
+        SearchField(label="Physiologic/pharmacodynamic effect", field=pharm_class_pe, onUpdate= { pharm_class_pe.value = it }, openFDAName = "openfda.pharm_class_pe"),
+        SearchField(label="Mechanism of action class", field=pharm_class_moa, onUpdate= {pharm_class_moa.value = it }, openFDAName = "openfda.pharm_class_moa"),
     )
     val onSuccess: suspend (HttpResponse) -> Unit = { action ->
         status = action.status.value
@@ -177,7 +177,7 @@ fun FunWithOpenFDA(
                 allFields.forEachIndexed { idx, it ->
                     item(key = idx, contentType = 1) {
                         TextField(
-                            value = it.value,
+                            value = it.field.value,
                             onValueChange = it.onUpdate,
                             enabled = true,
                             singleLine = true,
@@ -283,7 +283,7 @@ fun FunWithOpenFDA(
                 .padding(14.dp).width(280.dp)
             .wrapContentWidth() // only needed width
                 .align(Alignment.Bottom),
-                enabled = !isLoading && allFields.any { it.value.length >= 3},
+                enabled = !isLoading && allFields.any { it.field.value.length >= 3},
                 onClick = {
 
                     isLoading = true
@@ -296,9 +296,9 @@ fun FunWithOpenFDA(
                     scope.launch(context = Dispatchers.Default) {
                         //println(client.engine.config.toString())
                         val queries=allFields
-                            .filter { it.value.isNotBlank() }
+                            .filter { it.field.value.isNotBlank() }
                             .joinToString(prefix="+AND+", separator = "+AND+") {
-                                "_exists_:${it.openFDAName}+AND+${it.openFDAName}:${it.value}*"
+                                "_exists_:${it.openFDAName}+AND+${it.openFDAName}:${it.field.value}*"
                         }
 
                         val producttypeQuery =
@@ -322,7 +322,7 @@ fun FunWithOpenFDA(
                             onSuccess(action)
 
 
-                            contextTerm = indication.ifEmpty { adverseEvent.ifEmpty { "" } }
+                            contextTerm = indication.value.ifEmpty { adverseEvent.value.ifEmpty { "" } }
                             filter = emptyList()
                             focusRequester.requestFocus()
                             totalPages = response?.let {
@@ -377,7 +377,7 @@ fun FunWithOpenFDA(
                 )
 
                 Button(
-                    enabled = false && (!isLoading) && (response != null) && (response!!.results.any { it.indications_and_usage.isNotEmpty() }) && (indication.isNotEmpty()),
+                    enabled = false && (!isLoading) && (response != null) && (response!!.results.any { it.indications_and_usage.isNotEmpty() }) && (indication.value.isNotEmpty()),
                     onClick = {
                         isLoading = true
                         val baseurl = "http://10.11.12.120:8085/context?"
@@ -1013,7 +1013,7 @@ fun FunWithOpenFDA(
             Feature(
                 feature = shownFeature,
                 onDismissRequest = { showFeature = false },
-                searchStrs = allFields.map{ it.value}.filter {
+                searchStrs = allFields.map{ it.field.value}.filter {
                     it.isNotBlank()
                 },
                 html = showHtml
