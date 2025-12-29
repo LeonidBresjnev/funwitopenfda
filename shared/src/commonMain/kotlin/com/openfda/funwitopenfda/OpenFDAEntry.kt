@@ -218,7 +218,11 @@ data class OpenFDA(
     val manufacturer_name: List<String> = emptyList(),
     val route: List<String> = emptyList(),
     val product_type: List<String> = emptyList(),
-    val product_ndc: List<String> = emptyList()
+    val product_ndc: List<String> = emptyList(),
+    val pharm_class_cs: List<String> = emptyList(),
+    val pharm_class_epc: List<String> = emptyList(),
+    val pharm_class_pe: List<String> = emptyList(),
+    val pharm_class_moa: List<String> = emptyList(),
 )
 
 @Serializable
@@ -233,6 +237,7 @@ data class OpenFdaNdcResults(
     val generic_name: String,
     val brand_name: String,
     val finished: Boolean,
+    val dosage_form: String,
     val active_ingredients: List<Active_ingredients> = emptyList(),
     val packaging: List<NdcPackage> = emptyList()
 

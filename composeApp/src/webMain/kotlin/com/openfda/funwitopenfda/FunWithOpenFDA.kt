@@ -15,6 +15,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -30,10 +31,12 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight.Companion.Bold
 //import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -42,6 +45,7 @@ import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import com.openfda.funwitopenfda.openfda.Feature
 import com.openfda.funwitopenfda.openfda.Packages
+import com.openfda.funwitopenfda.openfda.SearchField
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
@@ -68,6 +72,10 @@ fun FunWithOpenFDA(
     var indication by rememberSaveable { mutableStateOf("") }
     var adverseEvent by rememberSaveable { mutableStateOf("") }
     var substance by rememberSaveable { mutableStateOf("") }
+    var pharm_class_cs by rememberSaveable { mutableStateOf("") }
+    var pharm_class_epc by rememberSaveable { mutableStateOf("") }
+    var pharm_class_pe by rememberSaveable { mutableStateOf("") }
+    var pharm_class_moa by rememberSaveable { mutableStateOf("") }
 
     var maxHits by rememberSaveable { mutableStateOf(20) }
 
@@ -127,13 +135,18 @@ fun FunWithOpenFDA(
 
     val focusRequester = remember { FocusRequester() }
 
-    val allFields = listOf<Triple<String, String, (String) -> Unit>>(
-        Triple("Generic name", generic) { generic = it },
-        Triple("Brand name", brand) { brand = it },
-        Triple("Manufacturer", manufacturer) { manufacturer = it },
-        Triple("Substance", substance) { substance = it },
-        Triple("Indication", indication) { indication = it },
-        Triple("Adverse reaction", adverseEvent) { adverseEvent = it }
+
+    val allFields = listOf(
+        SearchField(label="Generic name", value=generic, onUpdate= { generic = it }, openFDAName = "openfda.generic_name"),
+        SearchField(label="Brand name", value=brand, onUpdate= { brand = it }, openFDAName = "openfda.brand_name"),
+        SearchField(label="Manufacturer", value=manufacturer, onUpdate= {manufacturer = it }, openFDAName = "openfda.manufacturer_name"),
+        SearchField(label="Substance", value=substance, onUpdate= { substance = it }, openFDAName = "openfda.substance_name"),
+        SearchField(label="Indication", value=indication, onUpdate= { indication = it }, openFDAName = "indications_and_usage"),
+        SearchField(label="Adverse reaction", value=adverseEvent, onUpdate= { adverseEvent = it }, openFDAName = "adverse_reactions"),
+        SearchField(label="Chemical structure class", value=pharm_class_cs, onUpdate= { pharm_class_cs = it }, openFDAName = "openfda.pharm_class_cs"),
+        SearchField(label="Established Pharmacologic class", value=pharm_class_epc, onUpdate= { pharm_class_epc = it }, openFDAName = "openfda.pharm_class_epc"),
+        SearchField(label="Physiologic/pharmacodynamic effect", value=pharm_class_pe, onUpdate= { pharm_class_pe = it }, openFDAName = "openfda.pharm_class_pe"),
+        SearchField(label="Mechanism of action class", value=pharm_class_moa, onUpdate= {pharm_class_moa = it }, openFDAName = "openfda.pharm_class_moa"),
     )
     val onSuccess: suspend (HttpResponse) -> Unit = { action ->
         status = action.status.value
@@ -161,14 +174,14 @@ fun FunWithOpenFDA(
                 verticalItemSpacing = 12.dp,
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp)
             ) {
-                allFields.forEachIndexed { idx, (label, field, onUpdate) ->
+                allFields.forEachIndexed { idx, it ->
                     item(key = idx, contentType = 1) {
                         TextField(
-                            value = field,
-                            onValueChange = onUpdate,
+                            value = it.value,
+                            onValueChange = it.onUpdate,
                             enabled = true,
                             singleLine = true,
-                            label = { Text(label) },
+                            label = { Text(it.label) },
                             keyboardOptions = KeyboardOptions.Default.copy(
                                 imeAction = ImeAction.Next
                             ),
@@ -250,7 +263,7 @@ fun FunWithOpenFDA(
                     }
                 }
 
-                item(key = 8, contentType = 1) {
+                item(key = allFields.size+2, contentType = 1) {
                     TextField(
                         value = maxHits.toString(),
                         onValueChange = { maxHits = it.toIntOrNull() ?: maxHits },
@@ -270,7 +283,7 @@ fun FunWithOpenFDA(
                 .padding(14.dp).width(280.dp)
             .wrapContentWidth() // only needed width
                 .align(Alignment.Bottom),
-                enabled = !isLoading && allFields.any { it.second.length >= 3},
+                enabled = !isLoading && allFields.any { it.value.length >= 3},
                 onClick = {
 
                     isLoading = true
@@ -282,25 +295,23 @@ fun FunWithOpenFDA(
                     /*CoroutineScope(context= Dispatchers.Default).launch {*/
                     scope.launch(context = Dispatchers.Default) {
                         //println(client.engine.config.toString())
+                        val queries=allFields
+                            .filter { it.value.isNotBlank() }
+                            .joinToString(prefix="+AND+", separator = "+AND+") {
+                                "_exists_:${it.openFDAName}+AND+${it.openFDAName}:${it.value}*"
+                        }
 
-                        val genericQuery = if (generic.length >= 3) "+AND+openfda.generic_name:$generic*" else ""
-                        val brandQuery = if (brand.length >= 3) "+AND+openfda.brand_name:$brand*" else ""
-                        val manufactuerQuery =
-                            if (manufacturer.length >= 3) "+AND+openfda.manufacturer_name:$manufacturer*" else ""
                         val producttypeQuery =
                             if (selectedProductType != "Any") "+AND+openfda.product_type:\"$selectedProductType\"" else ""
                         val routeQuery = if (selectedRoute != "Any") "+AND+openfda.route:$selectedRoute" else ""
-                        val substanceQuery = if (substance.length >= 3) "+AND+openfda.substance_name:$substance*" else ""
-                        val indicationQuery =
-                            if (indication.length >= 3) "+AND+_exists_:indications_and_usage+AND+indications_and_usage:$indication*" else ""
-                        val aEQuery =
-                            if (adverseEvent.length >= 3) "+AND+_exists_:adverse_reactions+AND+adverse_reactions:$adverseEvent*" else ""
+
 
                         //val baseurl = "http://10.11.12.120:8085/openfda?search=_exists_:openfda"
                         val baseurl="https://visualopenfda.ew.r.appspot.com/openfda?search=_exists_:openfda"
+                        println("$baseurl$queries$producttypeQuery$routeQuery&limit=$maxHits")
                         val resultDef = async {
                             val httpResponse: Result<HttpResponse> = runCatching {
-                                httpClient.get(urlString = "$baseurl$genericQuery$brandQuery$manufactuerQuery$indicationQuery$substanceQuery$aEQuery$producttypeQuery$routeQuery&limit=$maxHits")
+                                httpClient.get(urlString = "$baseurl$queries$producttypeQuery$routeQuery&limit=$maxHits")
                             }
                             println("inside async of FunWithOpenFDA - button click")
                             return@async httpResponse
@@ -630,47 +641,36 @@ fun FunWithOpenFDA(
                                         val scrollState = rememberScrollState()
 
                                         Box(modifier = Modifier.fillMaxSize()) {
+                                            val basics = listOf(
+                                                Pair("Generic Name", item.openfda.generic_name),
+                                                Pair("Brand Name",item.openfda.brand_name),
+                                                Pair("Substance Name(s)",item.openfda.substance_name),
+                                                Pair("Product Type(s)",item.openfda.product_type),
+                                                Pair("Product NDC(s)",item.openfda.product_ndc),
+                                                Pair("Manufacturer name(s)",item.openfda.manufacturer_name),
+                                                Pair("Route(s) of administration",item.openfda.route),
+                                                Pair("Chemical structure class",item.openfda.pharm_class_cs),
+                                                Pair("Established pharmacologic class",item.openfda.pharm_class_epc),
+                                                Pair("Physiologic/pharmacodynamic effect class",item.openfda.pharm_class_pe),
+                                                Pair("Mechanism of action class",item.openfda.pharm_class_moa),
+                                            ).filter { it.second.isNotEmpty() }
                                             Column(
                                                 modifier = Modifier.fillMaxSize()
                                                     .padding(end = 12.dp)
                                                     .verticalScroll(scrollState)
                                             ) {
-                                                Text(
-                                                    "Generic Name(s): ${item.openfda.generic_name.joinToString(", ")}",
-                                                    style = MaterialTheme.typography.bodyLarge
-                                                )
-                                                Text(
-                                                    "Brand Name(s): ${item.openfda.brand_name.joinToString(", ")}",
-                                                    style = MaterialTheme.typography.bodyLarge
-                                                )
-                                                Text(
-                                                    "Substance Name(s): ${
-                                                        item.openfda.substance_name.joinToString(
-                                                            ", "
-                                                        )
-                                                    }",
-                                                    style = MaterialTheme.typography.bodyLarge
-                                                )
-                                                Text(
-                                                    "Product Type(s): ${item.openfda.product_type.joinToString(", ")}",
-                                                    style = MaterialTheme.typography.bodyLarge
-                                                )
-                                                Text(
-                                                    "Manufacturer name(s): ${
-                                                        item.openfda.manufacturer_name.joinToString(
-                                                            ", "
-                                                        )
-                                                    }",
-                                                    style = MaterialTheme.typography.bodyLarge
-                                                )
-                                                Text(
-                                                    "Route(s) of administration: ${
-                                                        item.openfda.route.joinToString(
-                                                            ", "
-                                                        )
-                                                    }",
-                                                    style = MaterialTheme.typography.bodyLarge
-                                                )
+                                                basics.forEach { (label, value) ->
+                                                    val builder = AnnotatedString.Builder()
+                                                    builder.append("$label: ${value.joinToString(", ")}")
+                                                    builder.addStyle(
+                                                        style = SpanStyle(fontWeight = Bold),
+                                                        start = 0,
+                                                        end =  label.length+1
+                                                    )
+                                                    SelectionContainer {
+                                                        Text(text=builder.toAnnotatedString())
+                                                    }
+                                                }
                                                 val packageInfo = buildAnnotatedString {
                                                     withLink(
                                                         LinkAnnotation.Clickable(
@@ -1003,8 +1003,6 @@ fun FunWithOpenFDA(
                 }
             }
 
-
-
         } else if (isLoading) {
             CircularProgressIndicator()
         }
@@ -1015,7 +1013,7 @@ fun FunWithOpenFDA(
             Feature(
                 feature = shownFeature,
                 onDismissRequest = { showFeature = false },
-                searchStrs = listOf(generic,brand,manufacturer,indication,adverseEvent).filter {
+                searchStrs = allFields.map{ it.value}.filter {
                     it.isNotBlank()
                 },
                 html = showHtml

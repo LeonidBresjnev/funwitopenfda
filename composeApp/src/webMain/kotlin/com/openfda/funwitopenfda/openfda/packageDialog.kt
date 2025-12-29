@@ -92,7 +92,7 @@ fun Packages(productNdc: List<String>,
 
                         SelectionContainer {
                             Text(
-                                text = result.active_ingredients.joinToString(" + ") { it.name + ": " + it.strength },
+                                text = result.active_ingredients.joinToString(" + ") { it.name + ": " + it.strength } + ( if (result.dosage_form.isNotBlank()) " (${result.dosage_form})" else ""),
                                 style = MaterialTheme.typography.headlineMedium
                             )
                         }
