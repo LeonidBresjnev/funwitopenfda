@@ -104,7 +104,7 @@ fun Feature(feature: Pair<String,List<String>>,
 
                         Column(modifier = Modifier.fillMaxSize()) {
                             feature.second.forEachIndexed { idx, iu ->
-                                println("table $idx, $iu")
+                                //println("table $idx, $iu")
                                 Box(
                                     modifier = Modifier.weight(1f)
 

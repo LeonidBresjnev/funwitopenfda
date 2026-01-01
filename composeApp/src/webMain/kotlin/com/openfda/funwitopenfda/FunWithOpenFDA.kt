@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.staggeredgrid.*
@@ -102,8 +102,6 @@ fun FunWithOpenFDA(
     var isLoading by remember { mutableStateOf(false) }
 
     var contextTerm by rememberSaveable { mutableStateOf("") }
-    var filter by rememberSaveable { mutableStateOf<List<Boolean>> ( emptyList() ) }
-    var applyFilter by remember { mutableStateOf(false) }
 
     var currentPageInterval by rememberSaveable { mutableStateOf(-1..-1) }
     //var currentPage by rememberSaveable { mutableIntStateOf(-1)}
@@ -115,6 +113,9 @@ fun FunWithOpenFDA(
     val pagerState = rememberPagerState(pageCount = {
         totalPages
     })
+    val contextValues = rememberSaveable {
+        mutableMapOf<String, Boolean>()
+    }
 
     //var htmlContent = false
 
@@ -288,6 +289,7 @@ fun FunWithOpenFDA(
 
                     isLoading = true
                     repository.clear()
+                    contextValues.clear()
                     loadedPages = 0
                     //currentPage = -1
                     currentPageInterval = -1..-1
@@ -306,14 +308,14 @@ fun FunWithOpenFDA(
                         val routeQuery = if (selectedRoute != "Any") "+AND+openfda.route:$selectedRoute" else ""
 
 
-                        //val baseurl = "http://10.11.12.120:8085/openfda?search=_exists_:openfda"
-                        val baseurl="https://visualopenfda.ew.r.appspot.com/openfda?search=_exists_:openfda"
-                        println("$baseurl$queries$producttypeQuery$routeQuery&limit=$maxHits")
+                        val baseurl = "http://10.11.12.120:$SERVER_PORT/openfda?search=_exists_:openfda"
+                        //val baseurl="https://visualopenfda.ew.r.appspot.com/openfda?search=_exists_:openfda"
+                       // println("$baseurl$queries$producttypeQuery$routeQuery&limit=$maxHits")
                         val resultDef = async {
                             val httpResponse: Result<HttpResponse> = runCatching {
                                 httpClient.get(urlString = "$baseurl$queries$producttypeQuery$routeQuery&limit=$maxHits")
                             }
-                            println("inside async of FunWithOpenFDA - button click")
+                            //println("inside async of FunWithOpenFDA - button click")
                             return@async httpResponse
                         }
                         val result = resultDef.await()
@@ -321,9 +323,7 @@ fun FunWithOpenFDA(
                         result.onSuccess { action ->
                             onSuccess(action)
 
-
                             contextTerm = indication.value.ifEmpty { adverseEvent.value.ifEmpty { "" } }
-                            filter = emptyList()
                             focusRequester.requestFocus()
                             totalPages = response?.let {
                                 return@let ((it.meta.results.total+ it.meta.results.limit-1)/ it.meta.results.limit )
@@ -335,10 +335,10 @@ fun FunWithOpenFDA(
                                     .filter { !it }
                                     .first()
 
-                                println("Pager is now completely stationary at page 0")
+                               // println("Pager is now completely stationary at page 0")
                             }
 
-                                println(pagerState.currentPage)
+                              //  println(pagerState.currentPage)
                                 if (repository.isNotEmpty()) {
                                     currentPageInterval = 0.. repository.lastIndex
                                 }
@@ -368,7 +368,7 @@ fun FunWithOpenFDA(
                 TextField(
                     value=contextTerm,
                     onValueChange = { contextTerm = it },
-                    enabled = false,
+                    enabled = true,
                     singleLine = true,
                     label = { Text("context term") },
                     keyboardOptions = KeyboardOptions.Default.copy(
@@ -377,23 +377,25 @@ fun FunWithOpenFDA(
                 )
 
                 Button(
-                    enabled = false && (!isLoading) && (response != null) && (response!!.results.any { it.indications_and_usage.isNotEmpty() }) && (indication.value.isNotEmpty()),
+                    enabled = (!isLoading) && (response != null) && (response!!.results.any { it.indications_and_usage.isNotEmpty() }) && (indication.value.isNotEmpty()),
                     onClick = {
                         isLoading = true
-                        val baseurl = "http://10.11.12.120:8085/context?"
+                        val baseurl = "http://10.11.12.120:$SERVER_PORT/context?"
 
                         scope.launch {
 
                             val labelList = response!!.results.map { it2 ->
-                                it2.indications_and_usage.joinToString(". ").replace("\"", "'")
+                                Pair(it2.indications_and_usage
+                                    .joinToString(". ")
+                                    .replace("\"", "'"),it2.id)
                             }
-                            val uniqueSet = labelList.toSet()
-                            println("size=${uniqueSet.size}")
+                            val uniqueSet = labelList.map{ it.first }.toSet()
+                          //  println("size=${uniqueSet.size}")
 
                             val resultDef = async(context = Dispatchers.Default) {
                                 val httpResponse: Result<HttpResponse> = runCatching {
                                     //println("inside runCatching")
-                                    println(baseurl + "indication=$indication")
+                                 //   println(baseurl + "indication=$indication")
                                     val response = httpClient.post(baseurl + "indication=$indication") {
 
                                         contentType(ContentType.Application.Json)
@@ -415,9 +417,9 @@ fun FunWithOpenFDA(
 
                                 onSuccess { action ->
                                     if (action.status == HttpStatusCode.OK) {
-                                        action.headers.entries().forEachIndexed { idx, it ->
-                                            println("$idx ${it.key}: ${it.value}")
-                                        }
+                                       /* action.headers.entries().forEachIndexed { idx, it ->
+                                          //  println("$idx ${it.key}: ${it.value}")
+                                        }*/
                                         return@run action.body<List<Boolean>>()
                                     } else {
                                         return@run emptyList()
@@ -430,10 +432,16 @@ fun FunWithOpenFDA(
                                 return@run emptyList()
 
                             }
-                            if (uniqueAnswers.size == uniqueSet.size) {
-                                val uniqueFilter = uniqueSet.map { it.hashCode() }.zip(uniqueAnswers).toMap()
-                                filter = labelList.map { uniqueFilter[it.hashCode()] ?: false }
 
+                            val uniqueFilter = uniqueSet
+                                .map { it.hashCode() }
+                                .zip(uniqueAnswers)
+                                .toMap()
+
+                            labelList.forEach {
+                                uniqueFilter[it.first.hashCode()]?.let { it2->
+                                    contextValues[it.second]= it2
+                                }
                             }
                             isLoading = false
 
@@ -443,11 +451,6 @@ fun FunWithOpenFDA(
                     Text("context filter")
                 }
 
-                Checkbox(
-                    enabled=false,
-                    checked = applyFilter,
-                    onCheckedChange = { applyFilter = it }
-                )
             }
         }
 
@@ -486,16 +489,16 @@ fun FunWithOpenFDA(
                         }
                     } else {
 
-                        println("repository size: ${repository.size}")
+                        //println("repository size: ${repository.size}")
                         isLoading = true
                         scope.launch(context = Dispatchers.Default) {
 
                             val resultDef = async {
                                 val httpResponse: Result<HttpResponse> = runCatching {
 
-                                    httpClient.get("https://visualopenfda.ew.r.appspot.com/openfda?link=$linkNext")
+                                    httpClient.get("http://10.11.12.120:$SERVER_PORT/openfda?link=$linkNext")
                                 }
-                                println("inside async of FunWithOpenFDA - button click")
+                                //println("inside async of FunWithOpenFDA - button click")
                                 return@async httpResponse
                             }
                             val result = resultDef.await()
@@ -543,8 +546,8 @@ fun FunWithOpenFDA(
             var containerHeight by remember { mutableStateOf(0) }
 
             LaunchedEffect(repository.size) {
-                val focusresult = focusRequester.requestFocus(focusDirection = FocusDirection.Enter)
-                println("Focus result: $focusresult")
+                /*val focusresult =*/ focusRequester.requestFocus(focusDirection = FocusDirection.Enter)
+             //   println("Focus result: $focusresult")
             }
 
             HorizontalPager(state=pagerState) { page ->
@@ -616,18 +619,25 @@ fun FunWithOpenFDA(
                             bottom = 8.dp,
                         )
                     ) {
-                        itemsIndexed(
-                            items = if (applyFilter && (filter.size==response?.results?.size)) {
-                                response?.results?.filterIndexed { idx, _ -> filter[idx] } ?: emptyList()
-                            } else repository.subList(
+                        items(
+                            items = repository.subList(
                                 fromIndex = (page * maxHits).coerceIn(0, repository.lastIndex),
                                 toIndex = ((page + 1) * maxHits).coerceIn(0, repository.lastIndex + 1)),
-                            key = { _, it -> it.key }
-                        ) { idx, item ->
+                            key = {  it.key }
+                        ) {  item ->
+                            val backgroundColor = when (contextValues[item.id]) {
+                                true -> Color(0xFFE8F5E9) // Light Green
+                                false -> Color(0xFFFFEBEE) // Light Red
+                                null -> CardDefaults.cardColors().containerColor // Default
+                            }
+
                             Card(
                                 shape = RoundedCornerShape(16.dp),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
-                                modifier = Modifier.padding(5.dp).sizeIn(maxWidth = 860.dp, maxHeight = 300.dp)
+                                colors = CardDefaults.cardColors(containerColor = backgroundColor),
+                                modifier = Modifier
+                                    .padding(5.dp)
+                                    .sizeIn(maxWidth = 860.dp, maxHeight = 300.dp)
                             ) {
                                 Row(modifier = Modifier.padding(5.dp).fillMaxSize()) {
                                     Column(
@@ -699,9 +709,7 @@ fun FunWithOpenFDA(
                                                     }
                                                 )
                                             )*/
-                                                if (filter.size==response?.results?.size) {
-                                                    Text("Indication in right context: ${if (filter[idx]) "Yes" else "No"} ")
-                                                }
+
 
                                             }
 

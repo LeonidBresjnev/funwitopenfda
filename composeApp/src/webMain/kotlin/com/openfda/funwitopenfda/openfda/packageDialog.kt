@@ -52,8 +52,8 @@ fun Packages(productNdc: List<String>,
         isLoading = false
         response = results.map { result ->
             result.onSuccess { action ->
-                val status = action.status.value
-                println("status=$status")
+                //val status = action.status.value
+                //println("status=$status")
                 return@map if (action.status == HttpStatusCode.OK) {
                     action.body<OpenFdaNdc>()
                 } else {

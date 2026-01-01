@@ -37,7 +37,7 @@ fun App() {
             basic {
                 sendWithoutRequest { request ->
                     // Only send preemptively to your specific backend host
-                    request.url.host == "visualopenfda.ew.r.appspot.com"
+                    request.url.host == "10.11.12.120" && request.url.port == SERVER_PORT
                 }
                 credentials {
                     BasicAuthCredentials(username = "funWithOpenFDA", password = "W3@r30nTh3DrugS")

@@ -43,12 +43,17 @@ fun main() {
 fun Application.configureHTTP() {
     println("Configuring CORS...")
     install(plugin=CORS) {
+        allowCredentials=true
         allowHeader("user_session")
         exposeHeader("user_session")
         exposeHeader("link")
+
+
+        allowHeader(HttpHeaders.ContentType)
+        allowHeader(HttpHeaders.Authorization)
+
         allowMethod(HttpMethod.Get)
         allowMethod(HttpMethod.Post)
-        allowHeader(HttpHeaders.ContentType)
         allowHost("localhost:8080", schemes = listOf("http"))
         allowHost("localhost:8081", schemes = listOf("http"))
         allowHost("localhost:8082", schemes = listOf("http"))
