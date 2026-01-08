@@ -377,7 +377,7 @@ fun FunWithOpenFDA(
                 )
 
                 Button(
-                    enabled = (!isLoading) && (response != null) && (response!!.results.any { it.indications_and_usage.isNotEmpty() }) && (indication.value.isNotEmpty()),
+                    enabled = (!isLoading) && (response != null) && (response!!.results.any { it.indications_and_usage.isNotEmpty() }) && (contextTerm.isNotEmpty()),
                     onClick = {
                         isLoading = true
                         val baseurl = "http://10.11.12.120:$SERVER_PORT/context?"
@@ -396,7 +396,7 @@ fun FunWithOpenFDA(
                                 val httpResponse: Result<HttpResponse> = runCatching {
                                     //println("inside runCatching")
                                  //   println(baseurl + "indication=$indication")
-                                    val response = httpClient.post(baseurl + "indication=$indication") {
+                                    val response = httpClient.post(baseurl + "indication=$contextTerm") {
 
                                         contentType(ContentType.Application.Json)
                                         headers {
