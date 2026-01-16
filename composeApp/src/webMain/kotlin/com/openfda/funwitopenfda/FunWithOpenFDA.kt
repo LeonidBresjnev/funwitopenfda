@@ -56,6 +56,11 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.format
+import kotlinx.datetime.format.MonthNames
+import kotlinx.datetime.format.Padding
+import kotlinx.datetime.format.char
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlin.uuid.ExperimentalUuidApi
@@ -102,6 +107,8 @@ fun FunWithOpenFDA(
     var isLoading by remember { mutableStateOf(false) }
 
     var contextTerm by rememberSaveable { mutableStateOf("") }
+    var context by rememberSaveable { mutableIntStateOf(0) }
+    var extendedContext by remember { mutableStateOf(false) }
 
     var currentPageInterval by rememberSaveable { mutableStateOf(-1..-1) }
     //var currentPage by rememberSaveable { mutableIntStateOf(-1)}
@@ -362,6 +369,7 @@ fun FunWithOpenFDA(
         }
         HorizontalDivider()
 
+        val possibleContext = listOf("is an indication", "is an adverse reaction")
         Column(modifier=Modifier.padding(16.dp)) {
             Text("Context filter")
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -376,6 +384,42 @@ fun FunWithOpenFDA(
                     ),
                 )
 
+
+                ExposedDropdownMenuBox(
+                    expanded = extendedContext,
+                    onExpandedChange = { extendedContext = it }
+                ) {
+                    TextField(
+                        modifier = Modifier.menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                        colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                        value = possibleContext[context],
+                        onValueChange = {},
+                        singleLine = true,
+                        label = { Text("Context") },
+                        keyboardOptions = KeyboardOptions.Default.copy(
+                            imeAction = ImeAction.Next
+                        ),
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = extendedContext)
+                        },
+
+                        )
+                    DropdownMenu(
+                        expanded = extendedContext,
+                        onDismissRequest = { extendedContext = false }
+                    ) {
+                        possibleContext.forEachIndexed { idx,it ->
+                            DropdownMenuItem(
+                                onClick = {
+                                    context = idx
+                                    extendedContext = false
+                                },
+                                text = { Text(it) }
+                            )
+                        }
+                    }
+                }
+
                 Button(
                     enabled = (!isLoading) && (response != null) && (response!!.results.any { it.indications_and_usage.isNotEmpty() }) && (contextTerm.isNotEmpty()),
                     onClick = {
@@ -385,7 +429,9 @@ fun FunWithOpenFDA(
                         scope.launch {
 
                             val labelList = response!!.results.map { it2 ->
-                                Pair(it2.indications_and_usage
+                                Pair((if (context==0) it2.indications_and_usage
+                                    else if (context==1) it2.adverse_reactions
+                                    else it2.indications_and_usage)
                                     .joinToString(". ")
                                     .replace("\"", "'"),it2.id)
                             }
@@ -396,13 +442,19 @@ fun FunWithOpenFDA(
                                 val httpResponse: Result<HttpResponse> = runCatching {
                                     //println("inside runCatching")
                                  //   println(baseurl + "indication=$indication")
-                                    val response = httpClient.post(baseurl + "indication=$contextTerm") {
+                                    val response = httpClient.post(baseurl) {
+
+                                        url {
+                                            parameters.append("indication", contextTerm)
+                                            parameters.append("question", context.toString())
+                                        }
 
                                         contentType(ContentType.Application.Json)
                                         headers {
                                             append(HttpHeaders.Accept, value = "application/json")
                                         }
 
+                                        println("Request URL: ${baseurl}?indication=$contextTerm&question=$context")
 
 
                                         setBody(Json.encodeToJsonElement(uniqueSet))
@@ -656,6 +708,7 @@ fun FunWithOpenFDA(
                                                 Pair("Brand Name",item.openfda.brand_name),
                                                 Pair("Substance Name(s)",item.openfda.substance_name),
                                                 Pair("Product Type(s)",item.openfda.product_type),
+                                                Pair("Effective time", listOf(item.effective_time)),
                                                 Pair("Product NDC(s)",item.openfda.product_ndc),
                                                 Pair("Manufacturer name(s)",item.openfda.manufacturer_name),
                                                 Pair("Route(s) of administration",item.openfda.route),
@@ -671,7 +724,26 @@ fun FunWithOpenFDA(
                                             ) {
                                                 basics.forEach { (label, value) ->
                                                     val builder = AnnotatedString.Builder()
-                                                    builder.append("$label: ${value.joinToString(", ")}")
+                                                    if ((label=="Effective time")&&(value[0].length==8)) {
+
+                                                            val year = value[0].substring(0, 4).toInt()
+                                                            val month = value[0].substring(4, 6).toInt()
+                                                            val day = value[0].substring(6, 8).toInt()
+                                                            val date = LocalDate(year, month, day)
+                                                        val customFormat = LocalDate.Format {
+
+                                                            monthName(MonthNames.ENGLISH_FULL)
+                                                            char(' ')
+                                                            this@Format.day(padding = Padding.ZERO)
+                                                            char(',')
+                                                            char(' ')
+                                                            year()
+                                                        }
+                                                        builder.append("$label: ${date.format(customFormat) }")
+                                                    }
+                                                    else {
+                                                        builder.append("$label: ${value.joinToString(", ")}")
+                                                    }
                                                     builder.addStyle(
                                                         style = SpanStyle(fontWeight = Bold),
                                                         start = 0,
@@ -1021,7 +1093,7 @@ fun FunWithOpenFDA(
             Feature(
                 feature = shownFeature,
                 onDismissRequest = { showFeature = false },
-                searchStrs = allFields.map{ it.field.value}.filter {
+                searchStrs = (allFields.map{ it.field.value}+listOf(contextTerm)).filter {
                     it.isNotBlank()
                 },
                 html = showHtml

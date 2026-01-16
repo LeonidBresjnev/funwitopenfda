@@ -184,13 +184,26 @@ fun Application.module() {
                 val labels: List<String> = call.receive()
                 println("labels: $labels")
                 val indication = call.request.queryParameters["indication"] ?: ""
+                val question = call.request.queryParameters["question"]?.toIntOrNull() ?: 0
                 println("indication: $indication")
 
 
                 val system = OpenAIInput(
                     role = "system",
-                    content = "determine if the users provide a label for a drug that treats ${indication.removeSurrounding("\"")}, either in monotherapy or in combination with other drugs. Only use information from the label, and not from anywhere else. answer true or false."
+                    content = when (question) {
+                        0 -> {
+                            "determine if the users provide a label for a drug that treats ${indication.removeSurrounding("\"")}, either in monotherapy or in combination with other drugs. Only use information from the label, and not from anywhere else. answer true or false."
+                        }
+                        1 -> {
+                            "determine if the users provide a label for a drug that has ${indication.removeSurrounding("\"")} as an adverse reaction, either in monotherapy or in combination with other drugs. Only use information from the label, and not from anywhere else. answer true or false."
+                        }
+                        else -> {
+                            "determine if the users provide a label for a drug that has ${indication.removeSurrounding("\"")}, either in monotherapy or in combination with other drugs. Only use information from the label, and not from anywhere else. answer true or false."
+                        }
+                    }
                 )
+
+
                 val baseurl =
                     "https://datascience-azure-openai-swedencentral.openai.azure.com/openai/responses?api-version=2025-04-01-preview"
 
