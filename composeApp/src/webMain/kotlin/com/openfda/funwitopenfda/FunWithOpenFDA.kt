@@ -429,9 +429,11 @@ fun FunWithOpenFDA(
                         scope.launch {
 
                             val labelList = response!!.results.map { it2 ->
-                                Pair((if (context==0) it2.indications_and_usage
-                                    else if (context==1) it2.adverse_reactions
-                                    else it2.indications_and_usage)
+                                Pair((when (context) {
+                                    0 -> it2.indications_and_usage
+                                    1 -> it2.adverse_reactions
+                                    else -> it2.indications_and_usage
+                                })
                                     .joinToString(". ")
                                     .replace("\"", "'"),it2.id)
                             }

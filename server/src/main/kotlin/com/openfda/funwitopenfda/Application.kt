@@ -205,7 +205,7 @@ fun Application.module() {
 
 
                 val baseurl =
-                    "https://datascience-azure-openai-swedencentral.openai.azure.com/openai/responses?api-version=2025-04-01-preview"
+                    "https://datascience-azure-openai-swedencentral.cognitiveservices.azure.com/openai/responses?api-version=2025-03-01-preview"
 
                 val responsesDef = labels.map { it2 ->
 
