@@ -96,6 +96,7 @@ fun Application.configureHTTP() {
 fun Application.module() {
     val apiFile = File("api.key")
     val key = apiFile.readText()
+    println("API key loaded: $key")
 
     val client = HttpClient(CIO) {
 
@@ -204,9 +205,8 @@ fun Application.module() {
                 )
 
 
-                val baseurl =
-                    "https://datascience-azure-openai-swedencentral.cognitiveservices.azure.com/openai/responses?api-version=2025-03-01-preview"
-
+                //val baseurl =  "https://datascience-azure-openai-swedencentral.cognitiveservices.azure.com/openai/responses?api-version=2025-03-01-preview"
+                val baseurl = "https://api.openai.com/v1/responses"
                 val responsesDef = labels.map { it2 ->
 
                     val input0 = Json.encodeToJsonElement(

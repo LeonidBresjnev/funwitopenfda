@@ -1,16 +1,16 @@
 [versions]
-androidx-lifecycle = "2.9.6"
-composeMultiplatform = "1.10.0"
-junit = "4.13.2"
-kotlin = "2.3.0"
-ktor = "3.4.0"
-logback = "1.5.24"
-kotlinx-datetime = "0.7.1"
+androidx-lifecycle = "2.10.0"
+composeMultiplatform = "1.11.1"
+composeMultiplatform-material3 = "1.11.0-alpha07"
+composeMultiplatform-materialIcons = "1.7.3"
+kotlin = "2.4.0"
+ktor = "3.5.0"
+logback = "1.5.34"
+kotlinx-datetime = "0.8.0"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
-junit = { module = "junit:junit", version.ref = "junit" }
 androidx-lifecycle-viewmodelCompose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "androidx-lifecycle" }
 androidx-lifecycle-runtimeCompose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "androidx-lifecycle" }
 logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
@@ -30,6 +30,13 @@ ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-content = { module = "io.ktor:ktor-client-content-negotiation" , version.ref = "ktor"}
 ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref="ktor"}
 ktor-client-auth = { module="io.ktor:ktor-client-auth", version.ref="ktor"}
+jetbrainsCompose-materialIconsCore = { module = "org.jetbrains.compose.material:material-icons-core", version.ref = "composeMultiplatform-materialIcons" }
+jetbrainsCompose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "composeMultiplatform" }
+jetbrainsCompose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "composeMultiplatform" }
+jetbrainsCompose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "composeMultiplatform-material3" }
+jetbrainsCompose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "composeMultiplatform" }
+jetbrainsCompose-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "composeMultiplatform" }
+jetbrainsCompose-uiToolingPreview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "composeMultiplatform" }
 
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
 

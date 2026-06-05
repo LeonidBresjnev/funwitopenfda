@@ -21,7 +21,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontWeight.Companion.Bold
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.WebElementView
+import androidx.compose.ui.viewinterop.HtmlElementView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.browser.document
@@ -110,7 +110,7 @@ fun Feature(feature: Pair<String,List<String>>,
 
                                         .border(1.dp, Color.Black)
                                 ) {
-                                    WebElementView(
+                                    HtmlElementView(
                                         modifier = Modifier.padding(10.dp)
                                             /* .sizeIn(
                                             minWidth = webViewWidth.value+50.dp,
@@ -127,7 +127,7 @@ fun Feature(feature: Pair<String,List<String>>,
                                             }
 
                                             //tableElement.innerHTML = iu
-                                            return@WebElementView tableElement
+                                            return@HtmlElementView tableElement
                                         },
                                         update = { element ->
                                             element.innerHTML = iu

@@ -315,7 +315,8 @@ fun FunWithOpenFDA(
                         val routeQuery = if (selectedRoute != "Any") "+AND+openfda.route:$selectedRoute" else ""
 
 
-                        val baseurl = "http://10.11.12.120:$SERVER_PORT/openfda?search=_exists_:openfda"
+                        val baseurl = "http://127.0.0.1:$SERVER_PORT/openfda?search=_exists_:openfda"
+                       // val baseurl = "http://10.11.12.120:$SERVER_PORT/openfda?search=_exists_:openfda"
                         //val baseurl="https://visualopenfda.ew.r.appspot.com/openfda?search=_exists_:openfda"
                        // println("$baseurl$queries$producttypeQuery$routeQuery&limit=$maxHits")
                         val resultDef = async {
@@ -424,7 +425,7 @@ fun FunWithOpenFDA(
                     enabled = (!isLoading) && (response != null) && (response!!.results.any { it.indications_and_usage.isNotEmpty() }) && (contextTerm.isNotEmpty()),
                     onClick = {
                         isLoading = true
-                        val baseurl = "http://10.11.12.120:$SERVER_PORT/context?"
+                        val baseurl = "http://127.0.0.1:$SERVER_PORT/context?"
 
                         scope.launch {
 
