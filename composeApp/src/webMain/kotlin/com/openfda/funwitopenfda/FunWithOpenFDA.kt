@@ -53,7 +53,6 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
@@ -340,15 +339,14 @@ fun FunWithOpenFDA(
                             launch {
                                 pagerState.scrollToPage(0)
                                 snapshotFlow { pagerState.isScrollInProgress }
-                                    .filter { !it }
-                                    .first()
+                                    .first { !it }
 
-                               // println("Pager is now completely stationary at page 0")
+                                // println("Pager is now completely stationary at page 0")
                             }
 
                               //  println(pagerState.currentPage)
                                 if (repository.isNotEmpty()) {
-                                    currentPageInterval = 0.. repository.lastIndex
+                                    currentPageInterval = repository.indices
                                 }
 
 
