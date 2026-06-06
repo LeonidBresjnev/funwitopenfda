@@ -1,38 +1,31 @@
 package com.openfda.funwitopenfda
 
+//import io.ktor.utils.io.jvm.javaio.copyTo
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
-import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
-import io.ktor.server.auth.Authentication
-import io.ktor.server.auth.UserIdPrincipal
-import io.ktor.server.auth.authenticate
-import io.ktor.server.auth.basic
+import io.ktor.server.auth.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
-import io.ktor.server.plugins.compression.Compression
-import io.ktor.server.plugins.compression.deflate
-import io.ktor.server.plugins.compression.gzip
-import io.ktor.server.plugins.compression.minimumSize
+import io.ktor.server.plugins.compression.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.plugins.cors.routing.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.utils.io.*
-//import io.ktor.utils.io.jvm.javaio.copyTo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToJsonElement
-import java.io.File
 
 fun main() {
 
@@ -58,6 +51,7 @@ fun Application.configureHTTP() {
         allowHost("localhost:8081", schemes = listOf("http"))
         allowHost("localhost:8082", schemes = listOf("http"))
         allowHost("hluu3305h", schemes = listOf("http"))
+        allowHost(host="leonidbresjnev.github.io", schemes = listOf("https"))
         //allowHost("localhost:*", schemes = listOf("http"))
         //anyHost()  Don't do this in production if possible. Try to limit it.
     }
@@ -80,11 +74,11 @@ fun Application.configureHTTP() {
     }
 
     install(plugin= Authentication) {
-        basic("auth-basic") {
+        basic(name="auth-basic") {
             realm = "Access to the '/' path"
             validate { credentials ->
                 if (credentials.name=="funWithOpenFDA" && credentials.password=="W3@r30nTh3DrugS") {
-                    UserIdPrincipal(credentials.name)
+                    UserIdPrincipal(name=credentials.name)
                 } else {
                     null
                 }
@@ -94,8 +88,9 @@ fun Application.configureHTTP() {
 }
 
 fun Application.module() {
-    val apiFile = File("api.key")
-    val key = apiFile.readText()
+    //val apiFile = File("./api.key")
+    val key = System.getenv("MY_TOKEN")
+    //apiFile.readText()
     println("API key loaded: $key")
 
     val client = HttpClient(CIO) {

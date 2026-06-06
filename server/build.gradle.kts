@@ -1,7 +1,22 @@
+import com.google.cloud.tools.gradle.appengine.appyaml.AppEngineAppYamlExtension
+
+configure<AppEngineAppYamlExtension> {
+    stage {
+        setArtifact("build/libs/${project.name}-all.jar")
+    }
+    println("Project name: ${project.name}")
+    deploy {
+        version = "GCLOUD_CONFIG"
+        projectId = "GCLOUD_CONFIG"
+    }
+}
+
 plugins {
     alias(libs.plugins.kotlinJvm)
     alias(libs.plugins.ktor)
     application
+
+    id("com.google.cloud.tools.appengine") version "2.8.0"
 }
 
 group = "com.openfda.funwitopenfda"

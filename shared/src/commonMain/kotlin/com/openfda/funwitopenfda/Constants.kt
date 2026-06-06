@@ -1,3 +1,3 @@
 package com.openfda.funwitopenfda
 
-const val SERVER_PORT = 8085
+const val SERVER_PORT = 8080
