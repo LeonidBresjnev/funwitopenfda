@@ -47,3 +47,6 @@ jobs:
         with:
           project_id: visualopenfda
           deliverables: server/src/main/appengine/app.yaml
+          workload_identity_provider: "projects/306621206188/locations/global/workloadIdentityPools/github/providers/my-repo"
+          service_account: visualopenfda@appspot.gserviceaccount.com
+
