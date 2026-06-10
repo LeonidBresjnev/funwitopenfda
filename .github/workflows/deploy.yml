@@ -18,13 +18,15 @@ jobs:
     steps:
       - run: echo "Workflow started2"
 
+      - run: echo "${{ github.repository }}"
+
       - uses: 'actions/checkout@v4'
 
       - uses: 'google-github-actions/auth@v3'
         with:
           project_id: 'visualopenfda'
           workload_identity_provider: "projects/306621206188/locations/global/workloadIdentityPools/github/providers/my-repo"
-      - run: echo "Repository:"
+
 
 
       - name: Set up JDK 21
