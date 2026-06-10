@@ -16,7 +16,7 @@ jobs:
       id-token: 'write'
 
     steps:
-      - run: echo "Workflow started1"
+      - run: echo "Workflow starte0"
 
       - run: echo "${{ github.repository }}"
       - run: echo "Owner=${{ github.repository_owner }}"
@@ -42,11 +42,23 @@ jobs:
       - name: Build Fat JAR
         run: ./gradlew :server:shadowJar
 
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/306621206188/locations/global/workloadIdentityPools/github/providers/my-repo
+          service_account: github-deployer@visualopenfda.iam.gserviceaccount.com
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Verify authentication
+        run: |
+          gcloud auth list
+          gcloud config list
+
       - name: Deploy to App Engine
         uses: google-github-actions/deploy-appengine@v2
         with:
           project_id: visualopenfda
           deliverables: server/src/main/appengine/app.yaml
-          workload_identity_provider: "projects/306621206188/locations/global/workloadIdentityPools/github/providers/my-repo"
-          service_account: github-deployer@visualopenfda.iam.gserviceaccount.com
-
+          promote: true
