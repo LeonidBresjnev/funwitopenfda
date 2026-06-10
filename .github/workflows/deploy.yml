@@ -17,8 +17,8 @@ jobs:
 
     steps:
       - run: echo "Workflow started2"
-        run: echo "Repository: ${{ github.repository }}"
-        run: echo "Owner: ${{ github.repository_owner }}"
+      - run: echo "Repository: ${{ github.repository }}"
+      - run: echo "Owner: ${{ github.repository_owner }}"
 
       - uses: 'actions/checkout@v4'
 
