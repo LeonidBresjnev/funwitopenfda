@@ -7,13 +7,13 @@ on:
       - master
       - with-deploy
 
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
     # Add "id-token" with the intended permissions.
     permissions:
       contents: 'read'
       id-token: 'write'
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
 
     steps:
       - run: echo "Workflow started2"
