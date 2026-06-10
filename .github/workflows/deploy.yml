@@ -59,9 +59,15 @@ jobs:
           gcloud auth list
           gcloud config list
 
+      - name: Prepare deploy folder
+        run: |
+          mkdir deploy
+          cp server/build/libs/server-all.jar deploy/
+          cp server/src/main/appengine/app.yaml deploy/
+
       - name: Deploy to App Engine
         uses: google-github-actions/deploy-appengine@v2
         with:
           project_id: visualopenfda
-          deliverables: server/src/main/appengine/app.yaml
-          promote: true
+          working_directory: deploy
+          deliverables: app.yaml
