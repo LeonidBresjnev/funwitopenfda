@@ -42,6 +42,9 @@ jobs:
       - name: Build Fat JAR
         run: ./gradlew :server:shadowJar
 
+      - name: List build libs
+        run: ls -la server/build/libs
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
