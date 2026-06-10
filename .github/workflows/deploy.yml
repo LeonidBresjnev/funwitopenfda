@@ -19,7 +19,7 @@ jobs:
       - run: echo "Workflow started2"
 
       - run: echo "${{ github.repository }}"
-      - run: echo "hello"
+      - run: echo "Owner=${{ github.repository_owner }}"
 
       - uses: 'actions/checkout@v4'
 
