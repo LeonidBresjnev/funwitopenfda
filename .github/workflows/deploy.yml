@@ -46,4 +46,4 @@ jobs:
         uses: google-github-actions/deploy-appengine@v2
         with:
           project_id: visualopenfda
-          app_yaml: server/src/main/appengine/app.yaml
+          deliverables: server/src/main/appengine/app.yaml
