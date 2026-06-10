@@ -19,3 +19,6 @@ captures
 node_modules/
 /server/src/main/appengine/api.key
 /server/api.key
+
+# Ignore generated credentials from google-github-actions/auth
+gha-creds-*.json
