@@ -16,7 +16,7 @@ jobs:
       id-token: 'write'
 
     steps:
-      - run: echo "Workflow started"
+      - run: echo "Workflow started1"
 
       - run: echo "${{ github.repository }}"
       - run: echo "Owner=${{ github.repository_owner }}"
