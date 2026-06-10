@@ -47,4 +47,4 @@ jobs:
         with:
           project_id: visualopenfda
           working_directory: server
-          app_yaml: src/main/appengine/app.yaml
+          app_yaml: server/src/main/appengine/app.yaml
