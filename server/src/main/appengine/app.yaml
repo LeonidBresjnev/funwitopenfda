@@ -1,4 +1,2 @@
 runtime: java21
 entrypoint: 'java -jar server-all.jar'
-env_variables:
-  MY_TOKEN: "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"
