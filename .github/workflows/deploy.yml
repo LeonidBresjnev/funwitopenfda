@@ -9,11 +9,25 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # Add "id-token" with the intended permissions.
+    permissions:
+      contents: 'read'
+      id-token: 'write'
 
     steps:
-      - run: echo "Workflow started2"
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - run: echo "Workflow starte4"
+
+      - run: echo "${{ github.repository }}"
+      - run: echo "Owner=${{ github.repository_owner }}"
+
+      - uses: 'actions/checkout@v4'
+
+      - uses: 'google-github-actions/auth@v3'
+        with:
+          project_id: 'visualopenfda'
+          workload_identity_provider: "projects/306621206188/locations/global/workloadIdentityPools/github/providers/my-repo"
+
+
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -27,14 +41,32 @@ jobs:
       - name: Build Fat JAR
         run: ./gradlew :server:shadowJar
 
+      - name: List build libs
+        run: ls -la server/build/libs
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          workload_identity_provider: projects/306621206188/locations/global/workloadIdentityPools/github/providers/my-repo
+          service_account: github-deployer@visualopenfda.iam.gserviceaccount.com
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Verify authentication
+        run: |
+          gcloud auth list
+          gcloud config list
+
+      - name: Prepare deploy folder
+        run: |
+          mkdir deploy
+          cp server/build/libs/server-all.jar deploy/
+          cp server/src/main/appengine/app.yaml deploy/
 
       - name: Deploy to App Engine
         uses: google-github-actions/deploy-appengine@v2
         with:
           project_id: visualopenfda
-          working_directory: server
-          app_yaml: src/main/appengine/app.yaml
+          working_directory: deploy
+          deliverables: app.yaml
