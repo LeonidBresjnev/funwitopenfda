@@ -64,6 +64,10 @@ jobs:
           cp server/build/libs/server-all.jar deploy/
           cp server/src/main/appengine/app.yaml deploy/
 
+      - name: Inject secrets into app.yaml
+        run: |
+          sed -i "s|__OPENAI_API_KEY__|${{ secrets.OPENAI }}|g" deploy/app.yaml
+
       - name: Deploy to App Engine
         uses: google-github-actions/deploy-appengine@v2
         with:
