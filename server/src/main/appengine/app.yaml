@@ -1,6 +1,6 @@
 runtime: java21
 entrypoint: 'java -jar server-all.jar'
 env_variables:
-  API_KEY: "__OPENAI_API_KEY__"
+  MY_TOKEN: "__OPENAI_API_KEY__"
 automatic_scaling:
   max_instances: 1
