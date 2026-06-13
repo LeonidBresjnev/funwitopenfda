@@ -51,7 +51,6 @@ import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -114,7 +113,7 @@ fun FunWithOpenFDA(
     var loadedPages by rememberSaveable { mutableIntStateOf(0)}
     var totalPages by rememberSaveable { mutableIntStateOf(0)}
 
-    val repository = remember { mutableListOf<OpenFDAResultEntry>() }
+    val repository = remember { mutableStateListOf<OpenFDAResultEntry>() }
 
     val pagerState = rememberPagerState(pageCount = {
         totalPages
@@ -143,8 +142,136 @@ fun FunWithOpenFDA(
     val focusRequester = remember { FocusRequester() }
 
 
-    val allFields = listOf(
-        SearchField(label="Generic name", field=generic, onUpdate= { generic.value = it }, openFDAName = "openfda.generic_name"),
+    @Composable
+    fun contextFilterContent(
+        contextTerm: String,
+        onContextTermChange: (String) -> Unit,
+        possibleContext: List<String>,
+        contextIndex: Int,
+        onContextIndexChange: (Int) -> Unit,
+        extendedContext: Boolean,
+        onExtendedContextChange: (Boolean) -> Unit,
+        isLoading: Boolean,
+        response: OpenFDAEntry?,
+        scope: kotlinx.coroutines.CoroutineScope,
+        httpClient: HttpClient,
+        contextValues: MutableMap<String, Boolean>,
+        onIsLoadingChange: (Boolean) -> Unit
+    ) {
+        TextField(
+            value = contextTerm,
+            onValueChange = onContextTermChange,
+            enabled = true,
+            singleLine = true,
+            label = { Text("context term") },
+            keyboardOptions = KeyboardOptions.Default.copy(
+                imeAction = ImeAction.Next
+            ),
+        )
+
+        ExposedDropdownMenuBox(
+            expanded = extendedContext,
+            onExpandedChange = onExtendedContextChange
+        ) {
+            TextField(
+                modifier = Modifier.menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                value = possibleContext[contextIndex],
+                onValueChange = {},
+                singleLine = true,
+                label = { Text("Context") },
+                keyboardOptions = KeyboardOptions.Default.copy(
+                    imeAction = ImeAction.Next
+                ),
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = extendedContext)
+                },
+            )
+            DropdownMenu(
+                expanded = extendedContext,
+                onDismissRequest = { onExtendedContextChange(false) }
+            ) {
+                possibleContext.forEachIndexed { idx, it ->
+                    DropdownMenuItem(
+                        onClick = {
+                            onContextIndexChange(idx)
+                            onExtendedContextChange(false)
+                        },
+                        text = { Text(it) }
+                    )
+                }
+            }
+        }
+
+        Button(
+            enabled = (!isLoading) && (response != null) && (response.results.any { it.indications_and_usage.isNotEmpty() }) && (contextTerm.isNotEmpty()),
+            onClick = {
+                onIsLoadingChange(true)
+                val baseurl = "https://visualopenfda.ew.r.appspot.com/context?"
+
+                scope.launch {
+                    val labelList = response!!.results.map { it2 ->
+                        Pair((when (contextIndex) {
+                            0 -> it2.indications_and_usage
+                            1 -> it2.adverse_reactions
+                            else -> it2.indications_and_usage
+                        })
+                            .joinToString(". ")
+                            .replace("\"", "'"), it2.id)
+                    }
+                    val uniqueSet = labelList.map { it.first }.toSet()
+
+                    val resultDef = async {
+                        val httpResponse: Result<HttpResponse> = runCatching {
+                            httpClient.post(baseurl) {
+                                url {
+                                    parameters.append("indication", contextTerm)
+                                    parameters.append("question", contextIndex.toString())
+                                }
+                                contentType(ContentType.Application.Json)
+                                headers {
+                                    append(HttpHeaders.Accept, value = "application/json")
+                                }
+                                setBody(Json.encodeToJsonElement(uniqueSet))
+                            }
+                        }
+                        return@async httpResponse
+                    }
+                    val result = resultDef.await()
+
+                    val uniqueAnswers = result.run {
+                        onSuccess { action ->
+                            if (action.status == HttpStatusCode.OK) {
+                                return@run action.body<List<Boolean>>()
+                            } else {
+                                return@run emptyList<Boolean>()
+                            }
+                        }
+                        onFailure { error ->
+                            println(error.message)
+                            return@run emptyList<Boolean>()
+                        }
+                        return@run emptyList<Boolean>()
+                    }
+
+                    val uniqueFilter = uniqueSet
+                        .map { it.hashCode() }
+                        .zip(uniqueAnswers)
+                        .toMap()
+
+                    labelList.forEach {
+                        uniqueFilter[it.first.hashCode()]?.let { it2 ->
+                            contextValues[it.second] = it2
+                        }
+                    }
+                    onIsLoadingChange(false)
+                }
+            }
+        ) {
+            Text("context filter")
+        }
+    }
+    val allFields = listOf(SearchField(label="Generic name", field=generic, onUpdate= { generic.value = it }, openFDAName = "openfda.generic_name"),
         SearchField(label="Brand name", field=brand, onUpdate= { brand.value = it }, openFDAName = "openfda.brand_name"),
         SearchField(label="Manufacturer", field=manufacturer, onUpdate= {manufacturer.value = it }, openFDAName = "openfda.manufacturer_name"),
         SearchField(label="Substance", field=substance, onUpdate= { substance.value = it }, openFDAName = "openfda.substance_name"),
@@ -158,212 +285,353 @@ fun FunWithOpenFDA(
     val onSuccess: suspend (HttpResponse) -> Unit = { action ->
         status = action.status.value
         linkNext = action.headers["link"]?.split(";")[0]?.removeSurrounding("<", ">") ?: ""
-        response = if (action.status==HttpStatusCode.OK) {
-            action.body<OpenFDAEntry>()
+
+        if (action.status == HttpStatusCode.OK) {
+            val parsedResponse = action.body<OpenFDAEntry>()
+            response = parsedResponse
+            repository.addAll(elements = parsedResponse.results)
+            loadedPages++
         } else {
-            null
+            response = null
         }
-        response?.results?.apply {
-            repository.addAll(elements = this)
+    }
+
+    fun runSearch() {
+        isLoading = true
+        repository.clear()
+        contextValues.clear()
+        loadedPages = 0
+        currentPageInterval = -1..-1
+        linkNext = ""
+
+        scope.launch {
+            try {
+                val queries = allFields
+                    .filter { it.field.value.isNotBlank() }
+                    .joinToString(prefix = "+AND+", separator = "+AND+") {
+                        "_exists_:${it.openFDAName}+AND+${it.openFDAName}:${it.field.value}*"
+                    }
+
+                val producttypeQuery =
+                    if (selectedProductType != "Any") "+AND+openfda.product_type:\"$selectedProductType\"" else ""
+                val routeQuery = if (selectedRoute != "Any") "+AND+openfda.route:$selectedRoute" else ""
+                val baseurl = "https://visualopenfda.ew.r.appspot.com/openfda?search=_exists_:openfda"
+
+                val result: Result<HttpResponse> = runCatching {
+                    httpClient.get(urlString = "$baseurl$queries$producttypeQuery$routeQuery&limit=$maxHits")
+                }
+
+                result.onSuccess { action ->
+                    onSuccess(action)
+
+                    contextTerm = indication.value.ifEmpty { adverseEvent.value.ifEmpty { "" } }
+                    focusRequester.requestFocus()
+                    totalPages = response?.let {
+                        return@let ((it.meta.results.total + it.meta.results.limit - 1) / it.meta.results.limit)
+                    } ?: 0
+
+                    launch {
+                        pagerState.scrollToPage(0)
+                        snapshotFlow { pagerState.isScrollInProgress }
+                            .first { !it }
+                    }
+
+                    if (repository.isNotEmpty()) {
+                        currentPageInterval = repository.indices
+                    }
+                }
+
+                result.onFailure { error ->
+                    repository.clear()
+                    totalPages = 0
+                    currentPageInterval = 0..0
+                    println(error.message)
+                    response = null
+                    contextTerm = ""
+                }
+            } finally {
+                isLoading = false
+            }
         }
-        loadedPages++
     }
 
     Column(modifier=modifier) {
-        Row(modifier=Modifier.fillMaxWidth()) {
-            LazyVerticalStaggeredGrid(
-                columns = StaggeredGridCells.Adaptive(minSize = 280.dp),
-                modifier = Modifier
-                    .padding(2.dp)
-                    .weight(1f)
-                    ,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalItemSpacing = 12.dp,
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp)
-            ) {
-                allFields.forEachIndexed { idx, it ->
-                    item(key = idx, contentType = 1) {
-                        TextField(
-                            value = it.field.value,
-                            onValueChange = it.onUpdate,
-                            enabled = true,
-                            singleLine = true,
-                            label = { Text(it.label) },
-                            keyboardOptions = KeyboardOptions.Default.copy(
-                                imeAction = ImeAction.Next
-                            ),
-                        )
-                    }
-                }
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            val isNarrow = maxWidth < 600.dp
+            val narrowFiltersMaxHeight = (maxHeight * 0.45f).coerceAtLeast(260.dp)
 
-                item(key = allFields.size+0, contentType = 1) {
-                    ExposedDropdownMenuBox(
-                        expanded = extendedProductType,
-                        onExpandedChange = { extendedProductType = it }
+            if (isNarrow) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    LazyVerticalStaggeredGrid(
+                        columns = StaggeredGridCells.Adaptive(minSize = 220.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp)
+                            .heightIn(max = narrowFiltersMaxHeight),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalItemSpacing = 8.dp,
+                        contentPadding = PaddingValues(vertical = 8.dp)
                     ) {
-                        TextField(
-                            modifier = Modifier.menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-                            colors = ExposedDropdownMenuDefaults.textFieldColors(),
-                            value = selectedProductType,
-                            onValueChange = {},
-                            singleLine = true,
-                            label = { Text("Product type") },
-                            keyboardOptions = KeyboardOptions.Default.copy(
-                                imeAction = ImeAction.Next
-                            ),
-                            trailingIcon = {
-                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = extendedProductType)
-                            },
-
-                            )
-                        DropdownMenu(
-                            expanded = extendedProductType,
-                            onDismissRequest = { extendedProductType = false }
-                        ) {
-                            productTypes.forEach {
-                                DropdownMenuItem(
-                                    onClick = {
-                                        selectedProductType = it
-                                        extendedProductType = false
-                                    },
-                                    text = { Text(it) }
+                        allFields.forEachIndexed { idx, it ->
+                            item(key = idx, contentType = 1) {
+                                TextField(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    value = it.field.value,
+                                    onValueChange = it.onUpdate,
+                                    enabled = true,
+                                    singleLine = true,
+                                    label = { Text(it.label) },
+                                    keyboardOptions = KeyboardOptions.Default.copy(
+                                        imeAction = ImeAction.Next
+                                    ),
                                 )
                             }
                         }
-                    }
-                }
 
-                item(key = allFields.size+1, contentType = 1) {
-                    ExposedDropdownMenuBox(
-                        expanded = extendedRoute,
-                        onExpandedChange = { extendedRoute = it }
-                    ) {
-                        TextField(
-                            modifier = Modifier.menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-                            colors = ExposedDropdownMenuDefaults.textFieldColors(),
-                            value = selectedRoute,
-                            onValueChange = {},
-                            singleLine = true,
-                            label = { Text("Route of administration") },
-                            keyboardOptions = KeyboardOptions.Default.copy(
-                                imeAction = ImeAction.Next
-                            ),
-                            trailingIcon = {
-                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = extendedRoute)
-                            },
-
-                            )
-                        DropdownMenu(
-                            expanded = extendedRoute,
-                            onDismissRequest = { extendedRoute = false }
-                        ) {
-                            routes.forEach {
-                                DropdownMenuItem(
-                                    onClick = {
-                                        selectedRoute = it
-                                        extendedRoute = false
+                        item(key = allFields.size + 0, contentType = 1) {
+                            ExposedDropdownMenuBox(
+                                expanded = extendedProductType,
+                                onExpandedChange = { extendedProductType = it }
+                            ) {
+                                TextField(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                                    colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                                    value = selectedProductType,
+                                    onValueChange = {},
+                                    singleLine = true,
+                                    label = { Text("Product type") },
+                                    keyboardOptions = KeyboardOptions.Default.copy(
+                                        imeAction = ImeAction.Next
+                                    ),
+                                    trailingIcon = {
+                                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = extendedProductType)
                                     },
-                                    text = { Text(it) }
-                                )
-                            }
-                        }
-                    }
-                }
 
-                item(key = allFields.size+2, contentType = 1) {
-                    TextField(
-                        value = maxHits.toString(),
-                        onValueChange = { maxHits = it.toIntOrNull() ?: maxHits },
-                        enabled = true,
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Number,
-                            imeAction = ImeAction.Done
-                        ),
-                        label = { Text("hits per page") }
-                    )
-                }
-
-
-            }
-            Button(modifier=Modifier
-                .padding(14.dp).width(280.dp)
-            .wrapContentWidth() // only needed width
-                .align(Alignment.Bottom),
-                enabled = !isLoading && allFields.any { it.field.value.length >= 3},
-                onClick = {
-
-                    isLoading = true
-                    repository.clear()
-                    contextValues.clear()
-                    loadedPages = 0
-                    //currentPage = -1
-                    currentPageInterval = -1..-1
-                    linkNext = ""
-                    /*CoroutineScope(context= Dispatchers.Default).launch {*/
-                    scope.launch(context = Dispatchers.Default) {
-                        //println(client.engine.config.toString())
-                        val queries=allFields
-                            .filter { it.field.value.isNotBlank() }
-                            .joinToString(prefix="+AND+", separator = "+AND+") {
-                                "_exists_:${it.openFDAName}+AND+${it.openFDAName}:${it.field.value}*"
-                        }
-
-                        val producttypeQuery =
-                            if (selectedProductType != "Any") "+AND+openfda.product_type:\"$selectedProductType\"" else ""
-                        val routeQuery = if (selectedRoute != "Any") "+AND+openfda.route:$selectedRoute" else ""
-
-
-                        //val baseurl = "http://127.0.0.1:$SERVER_PORT/openfda?search=_exists_:openfda"
-                       // val baseurl = "http://10.11.12.120:$SERVER_PORT/openfda?search=_exists_:openfda"
-                        val baseurl="https://visualopenfda.ew.r.appspot.com/openfda?search=_exists_:openfda"
-                       // println("$baseurl$queries$producttypeQuery$routeQuery&limit=$maxHits")
-                        val resultDef = async {
-                            val httpResponse: Result<HttpResponse> = runCatching {
-                                httpClient.get(urlString = "$baseurl$queries$producttypeQuery$routeQuery&limit=$maxHits")
-                            }
-                            //println("inside async of FunWithOpenFDA - button click")
-                            return@async httpResponse
-                        }
-                        val result = resultDef.await()
-                        isLoading = false
-                        result.onSuccess { action ->
-                            onSuccess(action)
-
-                            contextTerm = indication.value.ifEmpty { adverseEvent.value.ifEmpty { "" } }
-                            focusRequester.requestFocus()
-                            totalPages = response?.let {
-                                return@let ((it.meta.results.total+ it.meta.results.limit-1)/ it.meta.results.limit )
-                            } ?: 0
-
-                            launch {
-                                pagerState.scrollToPage(0)
-                                snapshotFlow { pagerState.isScrollInProgress }
-                                    .first { !it }
-
-                                // println("Pager is now completely stationary at page 0")
-                            }
-
-                              //  println(pagerState.currentPage)
-                                if (repository.isNotEmpty()) {
-                                    currentPageInterval = repository.indices
+                                    )
+                                DropdownMenu(
+                                    expanded = extendedProductType,
+                                    onDismissRequest = { extendedProductType = false }
+                                ) {
+                                    productTypes.forEach {
+                                        DropdownMenuItem(
+                                            onClick = {
+                                                selectedProductType = it
+                                                extendedProductType = false
+                                            },
+                                            text = { Text(it) }
+                                        )
+                                    }
                                 }
-
-
+                            }
                         }
-                        result.onFailure { error ->
-                            repository.clear()
-                            totalPages = 0
-                            currentPageInterval = 0..0
-                            println(error.message)
-                            response = null
-                            contextTerm = ""
+
+                        item(key = allFields.size + 1, contentType = 1) {
+                            ExposedDropdownMenuBox(
+                                expanded = extendedRoute,
+                                onExpandedChange = { extendedRoute = it }
+                            ) {
+                                TextField(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                                    colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                                    value = selectedRoute,
+                                    onValueChange = {},
+                                    singleLine = true,
+                                    label = { Text("Route of administration") },
+                                    keyboardOptions = KeyboardOptions.Default.copy(
+                                        imeAction = ImeAction.Next
+                                    ),
+                                    trailingIcon = {
+                                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = extendedRoute)
+                                    },
+
+                                    )
+                                DropdownMenu(
+                                    expanded = extendedRoute,
+                                    onDismissRequest = { extendedRoute = false }
+                                ) {
+                                    routes.forEach {
+                                        DropdownMenuItem(
+                                            onClick = {
+                                                selectedRoute = it
+                                                extendedRoute = false
+                                            },
+                                            text = { Text(it) }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        item(key = allFields.size + 2, contentType = 1) {
+                            TextField(
+                                modifier = Modifier.fillMaxWidth(),
+                                value = maxHits.toString(),
+                                onValueChange = { maxHits = it.toIntOrNull() ?: maxHits },
+                                enabled = true,
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Number,
+                                    imeAction = ImeAction.Done
+                                ),
+                                label = { Text("hits per page") }
+                            )
                         }
                     }
-
+                    Button(modifier = Modifier
+                        .padding(14.dp)
+                        .fillMaxWidth()
+                        .align(Alignment.CenterHorizontally),
+                        enabled = !isLoading && allFields.any { it.field.value.length >= 3 },
+                        onClick = {
+                            runSearch()
+                        }
+                    ) {
+                        Text("Search")
+                    }
                 }
+            } else {
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    LazyVerticalStaggeredGrid(
+                        columns = StaggeredGridCells.Adaptive(minSize = 280.dp),
+                        modifier = Modifier
+                            .padding(2.dp)
+                            .weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalItemSpacing = 12.dp,
+                        contentPadding = PaddingValues(12.dp)
+                    ) {
+                        allFields.forEachIndexed { idx, it ->
+                            item(key = idx, contentType = 1) {
+                                TextField(
+                                    value = it.field.value,
+                                    onValueChange = it.onUpdate,
+                                    enabled = true,
+                                    singleLine = true,
+                                    label = { Text(it.label) },
+                                    keyboardOptions = KeyboardOptions.Default.copy(
+                                        imeAction = ImeAction.Next
+                                    ),
+                                )
+                            }
+                        }
+
+                        item(key = allFields.size + 0, contentType = 1) {
+                            ExposedDropdownMenuBox(
+                                expanded = extendedProductType,
+                                onExpandedChange = { extendedProductType = it }
+                            ) {
+                                TextField(
+                                    modifier = Modifier.menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                                    colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                                    value = selectedProductType,
+                                    onValueChange = {},
+                                    singleLine = true,
+                                    label = { Text("Product type") },
+                                    keyboardOptions = KeyboardOptions.Default.copy(
+                                        imeAction = ImeAction.Next
+                                    ),
+                                    trailingIcon = {
+                                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = extendedProductType)
+                                    },
+
+                                    )
+                                DropdownMenu(
+                                    expanded = extendedProductType,
+                                    onDismissRequest = { extendedProductType = false }
+                                ) {
+                                    productTypes.forEach {
+                                        DropdownMenuItem(
+                                            onClick = {
+                                                selectedProductType = it
+                                                extendedProductType = false
+                                            },
+                                            text = { Text(it) }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        item(key = allFields.size + 1, contentType = 1) {
+                            ExposedDropdownMenuBox(
+                                expanded = extendedRoute,
+                                onExpandedChange = { extendedRoute = it }
+                            ) {
+                                TextField(
+                                    modifier = Modifier.menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                                    colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                                    value = selectedRoute,
+                                    onValueChange = {},
+                                    singleLine = true,
+                                    label = { Text("Route of administration") },
+                                    keyboardOptions = KeyboardOptions.Default.copy(
+                                        imeAction = ImeAction.Next
+                                    ),
+                                    trailingIcon = {
+                                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = extendedRoute)
+                                    },
+
+                                    )
+                                DropdownMenu(
+                                    expanded = extendedRoute,
+                                    onDismissRequest = { extendedRoute = false }
+                                ) {
+                                    routes.forEach {
+                                        DropdownMenuItem(
+                                            onClick = {
+                                                selectedRoute = it
+                                                extendedRoute = false
+                                            },
+                                            text = { Text(it) }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        item(key = allFields.size + 2, contentType = 1) {
+                            TextField(
+                                value = maxHits.toString(),
+                                onValueChange = { maxHits = it.toIntOrNull() ?: maxHits },
+                                enabled = true,
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Number,
+                                    imeAction = ImeAction.Done
+                                ),
+                                label = { Text("hits per page") }
+                            )
+                        }
+
+
+                    }
+                    Button(modifier = Modifier
+                        .padding(14.dp).width(280.dp)
+                        .wrapContentWidth() // only needed width
+                        .align(Alignment.Bottom),
+                        enabled = !isLoading && allFields.any { it.field.value.length >= 3 },
+                        onClick = {
+                            runSearch()
+                        }
+                    ) {
+                        Text("Search")
+                    }
+                }
+            }
+        }
+
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Text("Search")
+                CircularProgressIndicator()
             }
         }
         HorizontalDivider()
@@ -371,140 +639,17 @@ fun FunWithOpenFDA(
         val possibleContext = listOf("is an indication", "is an adverse reaction")
         Column(modifier=Modifier.padding(16.dp)) {
             Text("Context filter")
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                TextField(
-                    value=contextTerm,
-                    onValueChange = { contextTerm = it },
-                    enabled = true,
-                    singleLine = true,
-                    label = { Text("context term") },
-                    keyboardOptions = KeyboardOptions.Default.copy(
-                        imeAction = ImeAction.Next
-                    ),
-                )
-
-
-                ExposedDropdownMenuBox(
-                    expanded = extendedContext,
-                    onExpandedChange = { extendedContext = it }
-                ) {
-                    TextField(
-                        modifier = Modifier.menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-                        colors = ExposedDropdownMenuDefaults.textFieldColors(),
-                        value = possibleContext[context],
-                        onValueChange = {},
-                        singleLine = true,
-                        label = { Text("Context") },
-                        keyboardOptions = KeyboardOptions.Default.copy(
-                            imeAction = ImeAction.Next
-                        ),
-                        trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = extendedContext)
-                        },
-
-                        )
-                    DropdownMenu(
-                        expanded = extendedContext,
-                        onDismissRequest = { extendedContext = false }
-                    ) {
-                        possibleContext.forEachIndexed { idx,it ->
-                            DropdownMenuItem(
-                                onClick = {
-                                    context = idx
-                                    extendedContext = false
-                                },
-                                text = { Text(it) }
-                            )
-                        }
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                val isNarrowContext = maxWidth < 600.dp
+                if (isNarrowContext) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        contextFilterContent(contextTerm, { contextTerm = it }, possibleContext, context, { context = it }, extendedContext, { extendedContext = it }, isLoading, response, scope, httpClient, contextValues, { isLoading = it })
+                    }
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        contextFilterContent(contextTerm, { contextTerm = it }, possibleContext, context, { context = it }, extendedContext, { extendedContext = it }, isLoading, response, scope, httpClient, contextValues, { isLoading = it })
                     }
                 }
-
-                Button(
-                    enabled = (!isLoading) && (response != null) && (response!!.results.any { it.indications_and_usage.isNotEmpty() }) && (contextTerm.isNotEmpty()),
-                    onClick = {
-                        isLoading = true
-                        //val baseurl = "http://127.0.0.1:$SERVER_PORT/context?"
-                        val baseurl = "https://visualopenfda.ew.r.appspot.com/context?"
-
-                        scope.launch {
-
-                            val labelList = response!!.results.map { it2 ->
-                                Pair((when (context) {
-                                    0 -> it2.indications_and_usage
-                                    1 -> it2.adverse_reactions
-                                    else -> it2.indications_and_usage
-                                })
-                                    .joinToString(". ")
-                                    .replace("\"", "'"),it2.id)
-                            }
-                            val uniqueSet = labelList.map{ it.first }.toSet()
-                          //  println("size=${uniqueSet.size}")
-
-                            val resultDef = async(context = Dispatchers.Default) {
-                                val httpResponse: Result<HttpResponse> = runCatching {
-                                    //println("inside runCatching")
-                                 //   println(baseurl + "indication=$indication")
-                                    val response = httpClient.post(baseurl) {
-
-                                        url {
-                                            parameters.append("indication", contextTerm)
-                                            parameters.append("question", context.toString())
-                                        }
-
-                                        contentType(ContentType.Application.Json)
-                                        headers {
-                                            append(HttpHeaders.Accept, value = "application/json")
-                                        }
-
-                                        println("Request URL: ${baseurl}?indication=$contextTerm&question=$context")
-
-
-                                        setBody(Json.encodeToJsonElement(uniqueSet))
-                                    }
-                                    return@runCatching response
-                                }
-                                return@async httpResponse
-                            }
-                            val result = resultDef.await()
-
-                            val uniqueAnswers = result.run {
-
-                                onSuccess { action ->
-                                    if (action.status == HttpStatusCode.OK) {
-                                       /* action.headers.entries().forEachIndexed { idx, it ->
-                                          //  println("$idx ${it.key}: ${it.value}")
-                                        }*/
-                                        return@run action.body<List<Boolean>>()
-                                    } else {
-                                        return@run emptyList()
-                                    }
-                                }
-                                onFailure { error ->
-                                    println(error.message)
-                                    return@run emptyList()
-                                }
-                                return@run emptyList()
-
-                            }
-
-                            val uniqueFilter = uniqueSet
-                                .map { it.hashCode() }
-                                .zip(uniqueAnswers)
-                                .toMap()
-
-                            labelList.forEach {
-                                uniqueFilter[it.first.hashCode()]?.let { it2->
-                                    contextValues[it.second]= it2
-                                }
-                            }
-                            isLoading = false
-
-                        }
-                    }
-                ) {
-                    Text("context filter")
-                }
-
             }
         }
 
@@ -545,12 +690,12 @@ fun FunWithOpenFDA(
 
                         //println("repository size: ${repository.size}")
                         isLoading = true
-                        scope.launch(context = Dispatchers.Default) {
+                        scope.launch {
 
                             val resultDef = async {
                                 val httpResponse: Result<HttpResponse> = runCatching {
 
-                                    httpClient.get("http://10.11.12.120:$SERVER_PORT/openfda?link=$linkNext")
+                                    httpClient.get("https://visualopenfda.ew.r.appspot.com/openfda?link=$linkNext")
                                 }
                                 //println("inside async of FunWithOpenFDA - button click")
                                 return@async httpResponse
@@ -1086,7 +1231,14 @@ fun FunWithOpenFDA(
             }
 
         } else if (isLoading) {
-            CircularProgressIndicator()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
         }
 
         if (showFeature) {
