@@ -623,7 +623,7 @@ fun FunWithOpenFDA(
                 }
             }
         }
-
+/*
         if (isLoading) {
             Box(
                 modifier = Modifier
@@ -633,7 +633,7 @@ fun FunWithOpenFDA(
             ) {
                 CircularProgressIndicator()
             }
-        }
+        }*/
         HorizontalDivider()
 
         val possibleContext = listOf("is an indication", "is an adverse reaction")
